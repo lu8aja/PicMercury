@@ -24,8 +24,7 @@
 #include "system.h"
 #include "system_config.h"
 
-#include "app_device_cdc_basic.h"
-#include "app_led_usb_status.h"
+#include "app_main.h"
 
 #include "usb.h"
 #include "usb_device.h"
@@ -46,39 +45,22 @@
  *
  * Note:            None
  *******************************************************************/
-MAIN_RETURN main(void)
-{
+MAIN_RETURN main(void){
     SYSTEM_Initialize(SYSTEM_STATE_USB_START);
-
+    APP_init();
     USBDeviceInit();
     USBDeviceAttach();
     
-    while(1)
-    {
+    while(1){
         SYSTEM_Tasks();
 
-        #if defined(USB_POLLING)
-            // Interrupt or polling method.  If using polling, must call
-            // this function periodically.  This function will take care
-            // of processing and responding to SETUP transactions
-            // (such as during the enumeration process when you first
-            // plug in).  USB hosts require that USB devices should accept
-            // and process SETUP packets in a timely fashion.  Therefore,
-            // when using polling, this function should be called
-            // regularly (such as once every 1.8ms or faster** [see
-            // inline code comments in usb_device.c for explanation when
-            // "or faster" applies])  In most cases, the USBDeviceTasks()
-            // function does not take very long to execute (ex: <100
-            // instruction cycles) before it returns.
-            USBDeviceTasks();
-        #endif
-
+        //Application specific tasks
+        APP_main();
 
         /* If the USB device isn't configured yet, we can't really do anything
          * else since we don't have a host to talk to.  So jump back to the
          * top of the while loop. */
-        if( USBGetDeviceState() < CONFIGURED_STATE )
-        {
+        if( USBGetDeviceState() < CONFIGURED_STATE ){
             /* Jump back to the top of the while loop. */
             continue;
         }
@@ -87,15 +69,10 @@ MAIN_RETURN main(void)
          * issue a remote wakeup.  In either case, we shouldn't process any
          * keyboard commands since we aren't currently communicating to the host
          * thus just continue back to the start of the while loop. */
-        if( USBIsDeviceSuspended()== true )
-        {
+        if( USBIsDeviceSuspended()== true ){
             /* Jump back to the top of the while loop. */
             continue;
         }
-
-        //Application specific tasks
-        APP_DeviceCDCBasicDemoTasks();
-
     }//end while
 }//end main
 
@@ -131,12 +108,12 @@ bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size
         case EVENT_SOF:
             /* We are using the SOF as a timer to time the LED indicator.  Call
              * the LED update function here. */
-            APP_LEDUpdateUSBStatus();
+            //APP_LEDUpdateUSBStatus();
             break;
 
         case EVENT_SUSPEND:
             /* Update the LED status for the suspend event. */
-            APP_LEDUpdateUSBStatus();
+            //APP_LEDUpdateUSBStatus();
 
             //Call the hardware platform specific handler for suspend events for
             //possible further action (like optionally going reconfiguring the application
@@ -149,7 +126,7 @@ bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size
 
         case EVENT_RESUME:
             /* Update the LED status for the resume event. */
-            APP_LEDUpdateUSBStatus();
+            //APP_LEDUpdateUSBStatus();
 
             //Call the hardware platform specific resume from suspend handler (ex: to
             //restore I/O pins to higher power states if they were changed during the 
@@ -161,7 +138,7 @@ bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size
         case EVENT_CONFIGURED:
             /* When the device is configured, we can (re)initialize the 
              * demo code. */
-            APP_DeviceCDCBasicDemoInitialize();
+            APP_usbConfigured();
             break;
 
         case EVENT_SET_DESCRIPTOR:

@@ -4,15 +4,15 @@
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
             <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/usb/usb.h</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/usb_descriptors.c</file>
+            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/board/fixed_address_memory.h</file>
+            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/usb_config.h</file>
+            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/usb/usb_device_local.h</file>
             <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/board/system.h</file>
             <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/usb/usb_device.c</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/board/fixed_address_memory.h</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/board/io_mapping.h</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/usb_config.h</file>
             <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/usb/usb_hal_16bit.c</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/usb/usb_device_local.h</file>
+            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/board/io_mapping.h</file>
             <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/app_device_cdc_basic.c</file>
+            <file>file:/D:/Projects/PicMercury/PicMercury-Console/firmware/src/usb_descriptors.c</file>
         </group>
     </open-files>
 </project-private>
