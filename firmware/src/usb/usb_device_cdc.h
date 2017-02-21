@@ -651,6 +651,7 @@ bool USBCDCEventHandler(USB_EVENT event, void *pdata, uint16_t size);
                                                                                    
   **********************************************************************************/
 uint8_t getsUSBUSART(uint8_t *buffer, uint8_t len);
+uint8_t getsLineUSBUSART(uint8_t *buffer, uint8_t len);
 
 /******************************************************************************
   Function:

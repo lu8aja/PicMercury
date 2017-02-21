@@ -513,6 +513,83 @@ uint8_t getsUSBUSART(uint8_t *buffer, uint8_t len)
     
 }//end getsUSBUSART
 
+/**********************************************************************************
+  Function:
+        uint8_t getsLineUSBUSART(char *buffer, uint8_t len)
+    
+  Summary:
+    getsLineUSBUSART copies a string of BYTEs received through USB CDC Bulk OUT
+    endpoint to a user's specified location. It is a non-blocking function. 
+    Until it there is n o more data at CDC, or the number of bytes len has been 
+    reached or it finds a CR or LF. MODIFIED BY JAVIER ALBINARRATE
+    It does not wait for data if there is no data available. Instead it
+    returns '0' to notify the caller that there is no data available.
+ 
+  Description:
+    getsUSBUSART copies a string of BYTEs received through USB CDC Bulk OUT
+    endpoint to a user's specified location. It is a non-blocking function.
+    Until it there is n o more data at CDC, or the number of bytes len has been 
+    reached or it finds a CR or LF. MODIFIED BY JAVIER ALBINARRATE
+    It does not wait for data if there is no data available. Instead it
+    returns '0' to notify the caller that there is no data available.
+    
+    Typical Usage:
+    <code>
+        uint8_t numBytes;
+        uint8_t buffer[64]
+    
+        numBytes = getsUSBUSART(buffer,sizeof(buffer)); //until the buffer is free.
+        if(numBytes \> 0)
+        {
+            //we received numBytes bytes of data and they are copied into
+            //  the "buffer" variable.  We can do something with the data
+            //  here.
+        }
+    </code>
+  Conditions:
+    Value of input argument 'len' should be smaller than the maximum
+    endpoint size responsible for receiving bulk data from USB host for CDC
+    class. Input argument 'buffer' should point to a buffer area that is
+    bigger or equal to the size specified by 'len'.
+  Input:
+    buffer -  Pointer to where received BYTEs are to be stored
+    len -     The number of BYTEs expected.
+                                                                                   
+  **********************************************************************************/
+
+uint8_t getsLineUSBUSART(uint8_t *buffer, uint8_t len){
+    cdc_rx_len = 0;
+    
+    if(!USBHandleBusy(CDCDataOutHandle)){
+        /*
+         * Adjust the expected number of BYTEs to equal
+         * the actual number of BYTEs received.
+         */
+        if(len > USBHandleGetLength(CDCDataOutHandle))
+            len = USBHandleGetLength(CDCDataOutHandle);
+        
+        /*
+         * Copy data from dual-ram buffer to user's buffer
+         */
+        for(cdc_rx_len = 0; cdc_rx_len < len; cdc_rx_len++){
+            buffer[cdc_rx_len] = cdc_data_rx[cdc_rx_len];
+            buffer[cdc_rx_len + 1] = 0x00;
+            if (buffer[cdc_rx_len] == 0x0D || buffer[cdc_rx_len] == 0x0A){
+                break;
+            }
+        }
+        /*
+         * Prepare dual-ram buffer for next OUT transaction
+         */
+
+        CDCDataOutHandle = USBRxOnePacket(CDC_DATA_EP, (uint8_t*) &cdc_data_rx, sizeof(cdc_data_rx));
+
+    }//end if
+    
+    return cdc_rx_len;
+    
+}//end getsLineUSBUSART
+
 /******************************************************************************
   Function:
 	void putUSBUSART(char *data, uint8_t length)
