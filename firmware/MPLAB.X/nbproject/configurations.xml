@@ -6,11 +6,8 @@
                    projectFiles="true">
       <logicalFolder name="board" displayName="board" projectFiles="true">
         <itemPath>../src/board/fixed_address_memory.h</itemPath>
-        <itemPath>../src/board/io_mapping.h</itemPath>
         <itemPath>../src/board/system.h</itemPath>
         <itemPath>../src/board/adc.h</itemPath>
-        <itemPath>../src/board/buttons.h</itemPath>
-        <itemPath>../src/board/leds.h</itemPath>
         <itemPath>../src/board/power.h</itemPath>
       </logicalFolder>
       <logicalFolder name="usb" displayName="usb" projectFiles="true">
@@ -25,6 +22,13 @@
       </logicalFolder>
       <itemPath>../src/usb_config.h</itemPath>
       <itemPath>../src/app_main.h</itemPath>
+      <itemPath>../src/app_io.h</itemPath>
+      <itemPath>../src/app_music.h</itemPath>
+      <itemPath>../src/app_midi.h</itemPath>
+      <itemPath>../src/app_leds.h</itemPath>
+      <itemPath>../src/system_config.h</itemPath>
+      <itemPath>../src/app_cmd.h</itemPath>
+      <itemPath>../src/app_helpers.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -34,10 +38,8 @@
                    displayName="Source Files"
                    projectFiles="true">
       <logicalFolder name="board" displayName="board" projectFiles="true">
-        <itemPath>../src/board/system.c</itemPath>
         <itemPath>../src/board/adc.c</itemPath>
-        <itemPath>../src/board/buttons.c</itemPath>
-        <itemPath>../src/board/leds.c</itemPath>
+        <itemPath>../src/board/system.c</itemPath>
       </logicalFolder>
       <logicalFolder name="usb" displayName="usb" projectFiles="true">
         <itemPath>../src/usb/usb_device.c</itemPath>
@@ -47,6 +49,11 @@
       <itemPath>../src/main.c</itemPath>
       <itemPath>../src/usb_descriptors.c</itemPath>
       <itemPath>../src/app_main.c</itemPath>
+      <itemPath>../src/app_cmd.c</itemPath>
+      <itemPath>../src/app_helpers.c</itemPath>
+      <itemPath>../src/app_leds.c</itemPath>
+      <itemPath>../src/app_music.c</itemPath>
+      <itemPath>../src/app_midi.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

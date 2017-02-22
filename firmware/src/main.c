@@ -22,7 +22,7 @@
 
 /** INCLUDES *******************************************************/
 #include "system.h"
-#include "system_config.h"
+#include "usb_config.h"
 
 #include "app_main.h"
 
