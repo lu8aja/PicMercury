@@ -24,6 +24,7 @@
 #include "system_config.h"
 #include "usb.h"
 
+
 /** CONFIGURATION Bits **********************************************/
 #pragma config PLLDIV   = 5         // (20 MHz crystal on PICDEM FS USB board)
 #pragma config CPUDIV   = OSC1_PLL2
@@ -76,7 +77,7 @@ void SYSTEM_Initialize( SYSTEM_STATE state ){
     switch(state){
         case SYSTEM_STATE_USB_START:
             break;
-			
+
         case SYSTEM_STATE_USB_SUSPEND: 
             break;
             

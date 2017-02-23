@@ -29,6 +29,7 @@
 
 
 // Helper functions
+void          printReply(const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply);
 void          putch(const unsigned char byte);
 void          print(const unsigned char *pStr);
 unsigned long str2long(const char *sStr);
@@ -42,6 +43,29 @@ void          int2binstr(char *sStr, unsigned int iNum);
 void          clock2str(char *sStr, unsigned long ms);
 
 
+
+void printReply(const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply){
+    switch (nType){
+        case 0:
+            print("-ERROR ");
+            break;
+        case 1:
+            print("-OK ");
+            break;
+        case 2:
+            print("!ERROR ");
+            break;
+        case 3:
+            print("@OK ");
+            break;
+    }
+    print(pCmd);
+    if (pReply && strlen(pReply)){
+        print(": ");
+        print(pReply);
+    }
+    print(txtCrLf);
+}
 
 // Function used by stdio (printf, etc)
 void putch(const unsigned char byte){

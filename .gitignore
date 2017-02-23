@@ -33,3 +33,6 @@ firmware/MPLAB.X/disassembly/
 *.sdb
 *.obj.dmp
 *.err
+
+# Important files that should NOT be ignored
+!firmware/MPLAB.X/dist/Default/production/MPLAB.X.production.mum

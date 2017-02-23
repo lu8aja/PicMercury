@@ -20,57 +20,51 @@
 #include "system_config.h"
 
 // APP Commands
-void APP_CMD_ping(unsigned char *ptrArgs);
-void APP_CMD_uptime(unsigned char *ptrArgs);
-void APP_CMD_debug(unsigned char *ptrArgs);
-void APP_CMD_tone(unsigned char *ptrArgs);
-void APP_CMD_led(unsigned char *ptrArgs);
-void APP_CMD_monitor(unsigned char *ptrArgs);
-void APP_CMD_read(unsigned char *ptrArgs);
-void APP_CMD_write(unsigned char *ptrArgs);
+void APP_CMD_ping(unsigned char *pArgs);
+void APP_CMD_uptime(unsigned char *pArgs);
+void APP_CMD_debug(unsigned char *pArgs);
+void APP_CMD_tone(unsigned char *pArgs);
+void APP_CMD_led(unsigned char *pArgs);
+void APP_CMD_monitor(unsigned char *pArgs);
+void APP_CMD_read(unsigned char *pArgs);
+void APP_CMD_write(unsigned char *pArgs);
 
 
 
-void APP_CMD_ping(unsigned char *ptrArgs){
-    print(txtOkSp);
-    print("PONG: ");
-    print(ptrArgs);
-    print(txtCrLf);
+
+void APP_CMD_ping(unsigned char *pArgs){
+    printReply(1, "PONG", pArgs);
 }
 
-void APP_CMD_uptime(unsigned char *ptrArgs){
-    print(txtOkSp);
-    print("UPTIME: ");
-    clock2str(sReply, 0);
-    print(sReply);
-    print(txtCrLf);
+void APP_CMD_uptime(unsigned char *pArgs){
+    clock2str(sStr1, 0);
+    printReply(1, "UPTIME", sStr1);
 }
         
-void APP_CMD_debug(unsigned char *ptrArgs){
-    str2lower(ptrArgs);   
+void APP_CMD_debug(unsigned char *pArgs){
+    bool bOK = true;
+    sReply[0] = 0x00;
+    
+    str2lower(pArgs);   
         
-    print(txtOkSp);
-    print("DEBUG: ");
-    if (strcmp(ptrArgs, "on") == 0 || strcmp(ptrArgs, "1") == 0){
+    if (strequal(pArgs, "on") || strequal(pArgs, "1")){
         MasterDebug = 1;
-        print(txtOn);
     }
-    else if (strcmp(ptrArgs, "off") == 0 || strcmp(ptrArgs, "0") == 0){
+    else if (strequal(pArgs, "off") || strequal(pArgs, "0")){
         MasterDebug = 0;
-        print(txtOff);
     }
-    else if (strlen(ptrArgs) == 0){
-        print(MasterDebug > 0 ? txtOn : txtOff);
+    else if (strlen(pArgs)){
+        bOK = false;
+        strcpy(sReply, txtErrorUnknownArgument);
+        strcat(sReply, ". Now: ");
     }
-    else{
-        print(txtErrorUnknownArgument);
-        print(". Currently: ");
-        print(MasterDebug > 0 ? txtOn : txtOff);
-    }
-    print(txtCrLf);
+
+    strcat(sReply, MasterDebug > 0 ? txtOn : txtOff);
+
+    printReply(1, "DEBUG", sReply);
 }
 
-void APP_CMD_tone(unsigned char *ptrArgs){
+void APP_CMD_tone(unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -78,15 +72,20 @@ void APP_CMD_tone(unsigned char *ptrArgs){
     unsigned int nNote   = 0;
     unsigned int iFreq   = 0;
     unsigned int iPeriod = 0;
-    
-    sReply[0] = 0x00;
+    unsigned int iArg2   = 0;
     
     bool bShowStatus = false;
+
+    sReply[0] = 0x00;
     
-    str2lower(ptrArgs);
+    str2lower(pArgs);
     
-    pArg1 = strtok(ptrArgs, txtWhitespace);
+    pArg1 = strtok(pArgs, txtWhitespace);
     pArg2 = strtok(NULL,  txtWhitespace);
+    
+    if (pArg2){
+        iArg2 = atoi(pArg2);
+    }
 
     if (pArg1 == NULL){
         bShowStatus = true;
@@ -107,42 +106,62 @@ void APP_CMD_tone(unsigned char *ptrArgs){
     }
     else if (strequal(pArg1, "mode")){
         if (pArg2){
-            MasterToneMode = strequal(pArg2, "on") ? 1 : 0;
+            MasterToneMode = (strequal(pArg2, "on") || strequal(pArg2, "music")) ? 1 : 0;
         }
-        sprintf(sReply, "%s %s", pArg1, MasterToneMode ? txtOn : txtOff);
+        sprintf(sReply, "%s %s", pArg1, MasterToneMode ? "Music" : "Single");
     }
-    else if (strequal(pArg1, "period")){
-        MasterTonePeriod = (unsigned char) atoi(pArg2);
+    else if (strequal(pArg1, "time")){
+        if (pArg2){
+            MasterToneTime = iArg2;
+        }
+        sprintf(sReply, "%s %u", pArg1, MasterToneTime);
+    }
+    else if (strequal(pArg1, "tempo")){
+        if (pArg2){
+            MasterToneTempo = iArg2;
+        }
+        sprintf(sReply, "%s %u", pArg1, MasterToneTempo);
+    }
+    else if (strequal(pArg1, "pitch")){
+        if (pArg2){
+            MasterTonePitch = (signed char) iArg2;
+        }
+        sprintf(sReply, "%s %u", pArg1, MasterTonePitch);
+    }
+   else if (strequal(pArg1, "period")){
+        if (pArg2){
+            MasterTonePeriod = (unsigned char) iArg2;
+        }
         sprintf(sReply, "%s %u", pArg1, MasterTonePeriod);
     }
     else if (strspn(pArg1, txtNum) == strlen(pArg1)){
         iFreq = atoi(pArg1);
     }
     else if (strequal(pArg1, "freq")){
-        iFreq = atoi(pArg2);
+        if (pArg2){
+            iFreq = iArg2;
+        }
+        else{
+            bOK = false;
+            strcat(sReply, txtErrorMissingArgument);    
+        }
     }
     else if (strequal(pArg1, "midi")){
         // Get frequency from MIDI note number
-        nNote = atoi(pArg2);
-        if (nNote < 24 || nNote > 95){
-            bOK = false;
-            strcat(sReply, txtErrorInvalidArgument);    
+        if (pArg2){
+            nNote = iArg2;
+            if (nNote < 24 || nNote > 95){
+                bOK = false;
+                strcat(sReply, txtErrorInvalidArgument);    
+            }
+            else{
+                iPeriod = MasterToneMidiTable[nNote - 24];
+            }
         }
         else{
-            iPeriod = MasterToneMidiTable[nNote - 24];
+            bOK = false;
+            strcat(sReply, txtErrorMissingArgument);    
         }
-    }
-    else if (strequal(pArg1, "time")){
-        MasterToneTime = (unsigned int) atoi(pArg2);
-        sprintf(sReply, "%s %u", pArg1, MasterToneTime);
-    }
-    else if (strequal(pArg1, "tempo")){
-        MasterToneTempo = (unsigned int) atoi(pArg2);
-        sprintf(sReply, "%s %u", pArg1, MasterToneTempo);
-    }
-    else if (strequal(pArg1, "pitch")){
-        MasterTonePitch = (unsigned int) atoi(pArg2);
-        sprintf(sReply, "%s %u", pArg1, MasterTonePitch);
     }
     else{
         bOK = false;
@@ -173,13 +192,9 @@ void APP_CMD_tone(unsigned char *ptrArgs){
         bShowStatus       = true;
     }
 
-    if (bOK) print(txtOkSp);  else  print(txtErrorSp); 
-    print("TONE: ");
-    print(sReply);
     if (bShowStatus){
         if (MasterToneMode){
-            printf("%s %s Step: %d n: %d t: %d", 
-                "Music",
+            sprintf(sStr5, " - Music %s #%u n: %d t: %d", 
                 MasterToneEnabled ? txtOn : txtOff,
                 MasterToneStep,
                 MasterToneMusic[MasterToneStep].note,
@@ -187,31 +202,30 @@ void APP_CMD_tone(unsigned char *ptrArgs){
             );
         }
         else{
-            printf("%s %s T: %d t: %d",
-                "Single",
+            sprintf(sStr5, " - Single %s T: %u t: %u",
                 MasterToneEnabled ? txtOn : txtOff,
                 MasterTonePeriod,
                 MasterToneTime
             );
         }
     }
-    print(txtCrLf);
+    strcat(sReply, sStr5);
+    printReply(bOK, "TONE", sReply);
 }
 
-void APP_CMD_led(unsigned char *ptrArgs){
+void APP_CMD_led(unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
 
     unsigned char nLed    = 0;
-    unsigned int  iBit    = 1;
-    unsigned int  iMask   = 1; // It is later inverted
+    unsigned int  iBit    = 0;
     
     sReply[0] = 0x00;
     
-    str2lower(ptrArgs);
+    str2lower(pArgs);
     
-    pArg1 = strtok(ptrArgs, txtWhitespace);
+    pArg1 = strtok(pArgs, txtWhitespace);
     pArg2 = strtok(NULL,  txtWhitespace);
 
     if (strlen(pArg1) == 1 && !pArg2){
@@ -222,21 +236,12 @@ void APP_CMD_led(unsigned char *ptrArgs){
         nLed = (unsigned char) strtol(pArg1, NULL, 16);
         if (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0){
             setbit(MasterLedStatus, nLed);
+            iBit = 1;
         }
         else{
             clearbit(MasterLedStatus, nLed);
+            iBit = 0;
         }
-        /*
-        printf("N=%x Bit=%x Mask=%x\r\n", nLed, iBit, iMask);
-        if (nLed){
-            iBit  = iBit  << nLed;
-            iMask = iMask << nLed;
-        }
-        iMask = ~iMask;
-        printf("N=%x Bit=%x Mask=%x\r\n", nLed, iBit, iMask);
-        
-        MasterLedStatus = (MasterLedStatus & iMask) | iBit;
-         * */
         sprintf(sReply, "%d %s", nLed, iBit ? txtOn : txtOff);
     }
     else if (strlen(pArg1) == 0){
@@ -252,18 +257,14 @@ void APP_CMD_led(unsigned char *ptrArgs){
         strcpy(sReply, txtErrorUnknownArgument);
     }
     
-    if (bOK) print(txtOkSp);  else  print(txtErrorSp); 
-    print("LED: ");
-    print(sReply);
-    print(" Status: ");
+    strcat(sReply, " Status: ");
     int2binstr(sStr1, MasterLedStatus);
-    print(sStr1);
-    print(txtCrLf);
+    strcat(sReply, sStr1);
+    
+    printReply(bOK, "LED", sReply);
 }
 
-
-
-void APP_CMD_monitor(unsigned char *ptrArgs){
+void APP_CMD_monitor(unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -271,9 +272,9 @@ void APP_CMD_monitor(unsigned char *ptrArgs){
     
     sReply[0] = 0x00;
     
-    str2lower(ptrArgs);
+    str2lower(pArgs);
     
-    pArg1 = strtok(ptrArgs, txtWhitespace);
+    pArg1 = strtok(pArgs, txtWhitespace);
     pArg2 = strtok(NULL,  txtWhitespace);
 
     str2upper(pArg1);
@@ -316,236 +317,155 @@ void APP_CMD_monitor(unsigned char *ptrArgs){
         }
     }
 
-    if (bOK) print(txtOkSp);  else  print(txtErrorSp); 
-    print("MONITOR: ");
-    print(sReply);
-    print(txtCrLf);
-
+    printReply(bOK, "MONITOR", sReply);
 }
 
-void APP_CMD_read(unsigned char *ptrArgs){
+void APP_CMD_read(unsigned char *pArgs){
     bool bOK = true;
+    unsigned char nBit = 255; // Double purpose, bit number for single pin or TRIS value for whole port
+    unsigned char nMax = '7';
+    volatile unsigned char *pPort;
+    volatile unsigned char *pTris;
     
     sReply[0] = 0x00;
-    sReply[1] = 0x00;
     
-    switch (ptrArgs[0]){
-        case 'a': //97 a 
-        case 'A': //97 a 
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISAbits.TRISA0 = 1; sReply[0] = PORTAbits.RA0 + 48; break;
-                case 49: /*1*/ TRISAbits.TRISA1 = 1; sReply[0] = PORTAbits.RA1 + 48; break;
-                case 50: /*2*/ TRISAbits.TRISA2 = 1; sReply[0] = PORTAbits.RA2 + 48; break;
-                case 51: /*3*/ TRISAbits.TRISA3 = 1; sReply[0] = PORTAbits.RA3 + 48; break;
-                case 52: /*4*/ TRISAbits.TRISA4 = 1; sReply[0] = PORTAbits.RA4 + 48; break;
-                case 53: /*5*/ TRISAbits.TRISA5 = 1; sReply[0] = PORTAbits.RA5 + 48; break;
-                //case 54: /*6*/ // OSC2
-                //case 55: /*7*/ // Does not exist
-                case 0: 
-                    TRISA = 0xff;
-                    byte2binstr(sReply, PORTA);
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
-        case 98: //b
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISBbits.TRISB0 = 1; sReply[0] = PORTBbits.RB0 + 48; break;
-                case 49: /*1*/ TRISBbits.TRISB1 = 1; sReply[0] = PORTBbits.RB1 + 48; break;
-                case 50: /*2*/ TRISBbits.TRISB2 = 1; sReply[0] = PORTBbits.RB2 + 48; break;
-                case 51: /*3*/ TRISBbits.TRISB3 = 1; sReply[0] = PORTBbits.RB3 + 48; break;
-                case 52: /*4*/ TRISBbits.TRISB4 = 1; sReply[0] = PORTBbits.RB4 + 48; break;
-                case 53: /*5*/ TRISBbits.TRISB5 = 1; sReply[0] = PORTBbits.RB5 + 48; break;
-                case 54: /*6*/ TRISBbits.TRISB6 = 1; sReply[0] = PORTBbits.RB6 + 48; break;
-                case 55: /*7*/ TRISBbits.TRISB7 = 1; sReply[0] = PORTBbits.RB7 + 48; break;
-                case 0: 
-                    TRISB = 0xff;
-                    byte2binstr(sReply, PORTB);
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
-        case 99: //c
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISCbits.TRISC0 = 1; sReply[0] = PORTCbits.RC0 + 48; break;
-                case 49: /*1*/ TRISCbits.TRISC1 = 1; sReply[0] = PORTCbits.RC1 + 48; break;
-                case 50: /*2*/ TRISCbits.TRISC2 = 1; sReply[0] = PORTCbits.RC2 + 48; break;
-                //case 51: /*3*/ // Does not exist
-                //case 52: /*4*/ // D- ReadOnly, Tris not needed (DISABLED as we use USB)
-                //case 53: /*5*/ // D+ ReadOnly, Tris not needed (DISABLED as we use USB)
-                //case 54: /*6*/ // TX (DISABLED as we use UART)
-                //case 55: /*7*/ // RX (DISABLED as we use UART)
-                case 0: 
-                    TRISC = 0xff;
-                    byte2binstr(sReply, PORTC);
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
-        case 100: //d
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISDbits.TRISD0 = 1; sReply[0] = PORTDbits.RD0 + 48; break;
-                case 49: /*1*/ TRISDbits.TRISD1 = 1; sReply[0] = PORTDbits.RD1 + 48; break;
-                case 50: /*2*/ TRISDbits.TRISD2 = 1; sReply[0] = PORTDbits.RD2 + 48; break;
-                case 51: /*3*/ TRISDbits.TRISD3 = 1; sReply[0] = PORTDbits.RD3 + 48; break;
-                case 52: /*4*/ TRISDbits.TRISD4 = 1; sReply[0] = PORTDbits.RD4 + 48; break;
-                case 53: /*5*/ TRISDbits.TRISD5 = 1; sReply[0] = PORTDbits.RD5 + 48; break;
-                case 54: /*6*/ TRISDbits.TRISD6 = 1; sReply[0] = PORTDbits.RD6 + 48; break;
-                case 55: /*7*/ TRISDbits.TRISD7 = 1; sReply[0] = PORTDbits.RD7 + 48; break;
-                case 0: 
-                    TRISD = 0xff;
-                    byte2binstr(sReply, PORTD);
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
-        case 101: //e
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISEbits.TRISE0 = 1; sReply[0] = PORTEbits.RE0 + 48; break;
-                case 49: /*1*/ TRISEbits.TRISE1 = 1; sReply[0] = PORTEbits.RE1 + 48; break;
-                case 50: /*2*/ TRISEbits.TRISE2 = 1; sReply[0] = PORTEbits.RE2 + 48; break;
-                case 0: 
-                    TRISE = 0xff;
-                    byte2binstr(sReply, PORTE);
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
+    str2upper(pArgs);
+    
+    switch (pArgs[0]){
+        case 'A':
+            // RA6 OSC2 / RA7 n/a
+            pPort = &PORTA; pTris = &TRISA; nMax = '5'; nBit = 0b00111111; break;
+        case 'B':
+            pPort = &PORTB; pTris = &TRISB; break;
+        case 'C':
+            // RC3 n/a / RC4 D- ReadOnly / RC5 D+ ReadOnly / RC6 TX UART / RC7 RX UART
+            pPort = &PORTC; pTris = &TRISC; nMax = '2'; nBit = 0b10000111; break;
+        case 'D':
+            pPort = &PORTD; pTris = &TRISD; break;
+        case 'E':
+            // RE3..7 Does not exist
+            pPort = &PORTE; pTris = &TRISE; nMax = '2'; nBit = 0b00000111;  break;
         default: 
             bOK = false;
             strcat(sReply, txtErrorUnknownArgument);
             break;
     }
-    if (bOK) print(txtOkSp);  else  print(txtErrorSp); 
-    print("READ: ");
-    print(sReply);
-    print(txtCrLf);
+    
+    if (bOK){
+        if (pArgs[1]){
+            // Single pin
+            if (pArgs[1] >= '0' && pArgs[1] <= nMax){
+                nBit = pArgs[1] - 48;
+                setbit(*pTris, nBit);
+                
+                sReply[0] = pArgs[0];
+                sReply[1] = pArgs[1];
+                sReply[2] = '=';
+                sReply[3] = readbit(*pPort, nBit) + 48;
+                sReply[4] = 0;
+            }
+            else {
+                bOK = false;
+                strcat(sReply, txtErrorUnknownPin);
+            }
+        }
+        else{
+            // Whole port
+            *pTris = nBit;
+            
+            sReply[0] = pArgs[0];
+            sReply[1] = '=';
+            byte2binstr(&sReply[2], *pPort);
+
+        }
+    }
+    
+    printReply(bOK, "READ", sReply);
 }
 
-void APP_CMD_write(unsigned char *ptrArgs){
+void APP_CMD_write(unsigned char *pArgs){
     bool bOK = true;
-    
-    sReply[0] = 0x00;
-    sReply[1] = 0x00;
+    unsigned char *pArg1 = NULL;
+    unsigned char *pArg2 = NULL;
 
-    switch (ptrArgs[0]){
-        case 97: //a 
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISAbits.TRISA0 = 0; LATAbits.LATA0 = ptrArgs[2] - 48; break;
-                case 49: /*1*/ TRISAbits.TRISA1 = 0; LATAbits.LATA1 = ptrArgs[2] - 48; break;
-                case 50: /*2*/ TRISAbits.TRISA2 = 0; LATAbits.LATA2 = ptrArgs[2] - 48; break;
-                case 51: /*3*/ TRISAbits.TRISA3 = 0; LATAbits.LATA3 = ptrArgs[2] - 48; break;
-                case 52: /*4*/ TRISAbits.TRISA4 = 0; LATAbits.LATA4 = ptrArgs[2] - 48; break;
-                case 53: /*5*/ TRISAbits.TRISA5 = 0; LATAbits.LATA5 = ptrArgs[2] - 48; break;
-                //case 54: /*6*/ TRISAbits.TRISA6 = 0; LATAbits.LATA6 = ptrArgs[2] - 48; break;
-                //case 55: /*7*/ TRISAbits.TRISA7 = 0; LATAbits.LATA7 = ptrArgs[2] - 48; break;
-                case 0: 
-                    TRISA = 0x00;
-                    LATA = ptrArgs[2];
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
-        case 98: //b
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISBbits.TRISB0 = 0; LATBbits.LATB0 = ptrArgs[2] - 48; break;
-                case 49: /*1*/ TRISBbits.TRISB1 = 0; LATBbits.LATB1 = ptrArgs[2] - 48; break;
-                case 50: /*2*/ TRISBbits.TRISB2 = 0; LATBbits.LATB2 = ptrArgs[2] - 48; break;
-                case 51: /*3*/ TRISBbits.TRISB3 = 0; LATBbits.LATB3 = ptrArgs[2] - 48; break;
-                case 52: /*4*/ TRISBbits.TRISB4 = 0; LATBbits.LATB4 = ptrArgs[2] - 48; break;
-                case 53: /*5*/ TRISBbits.TRISB5 = 0; LATBbits.LATB5 = ptrArgs[2] - 48; break;
-                case 54: /*6*/ TRISBbits.TRISB6 = 0; LATBbits.LATB6 = ptrArgs[2] - 48; break; // PGC
-                case 55: /*7*/ TRISBbits.TRISB7 = 0; LATBbits.LATB7 = ptrArgs[2] - 48; break; // PGD
-                case 0: 
-                    TRISB = 0x00;
-                    LATB = ptrArgs[2];
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
-        case 99: //c
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISCbits.TRISC0 = 0; LATCbits.LATC0 = ptrArgs[2] - 48; break;
-                case 49: /*1*/ TRISCbits.TRISC1 = 0; LATCbits.LATC1 = ptrArgs[2] - 48; break;
-                case 50: /*2*/ TRISCbits.TRISC2 = 0; LATCbits.LATC2 = ptrArgs[2] - 48; break;
-                //case 51: /*3*/ // Does not exist
-                //case 52: /*4*/ // D- ReadOnly (DISABLED as we use USB)
-                //case 53: /*5*/ // D+ ReadOnly (DISABLED as we use USB)
-                //case 54: /*6*/ // TX (DISABLED as we use UART)
-                //case 55: /*7*/ // RX (DISABLED as we use UART)
-                case 0: 
-                    TRISC = 0x00;
-                    LATC = ptrArgs[2];
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
-        case 100: //d
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISDbits.TRISD0 = 0; LATDbits.LATD0 = ptrArgs[2] - 48; break;
-                case 49: /*1*/ TRISDbits.TRISD1 = 0; LATDbits.LATD1 = ptrArgs[2] - 48; break;
-                case 50: /*2*/ TRISDbits.TRISD2 = 0; LATDbits.LATD2 = ptrArgs[2] - 48; break;
-                case 51: /*3*/ TRISDbits.TRISD3 = 0; LATDbits.LATD3 = ptrArgs[2] - 48; break;
-                case 52: /*4*/ TRISDbits.TRISD4 = 0; LATDbits.LATD4 = ptrArgs[2] - 48; break;
-                case 53: /*5*/ TRISDbits.TRISD5 = 0; LATDbits.LATD5 = ptrArgs[2] - 48; break;
-                case 54: /*6*/ TRISDbits.TRISD6 = 0; LATDbits.LATD6 = ptrArgs[2] - 48; break;
-                case 55: /*7*/ TRISDbits.TRISD7 = 0; LATDbits.LATD7 = ptrArgs[2] - 48; break;
-                case 0: 
-                    TRISD = 0x00;
-                    LATD = ptrArgs[2];
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
-        case 101: //e
-            switch (ptrArgs[1]){
-                case 48: /*0*/ TRISEbits.TRISE0 = 0; LATEbits.LATE0 = ptrArgs[2] - 48; break;
-                case 49: /*1*/ TRISEbits.TRISE1 = 0; LATEbits.LATE1 = ptrArgs[2] - 48; break;
-                case 50: /*2*/ TRISEbits.TRISE2 = 0; LATEbits.LATE2 = ptrArgs[2] - 48; break;
-                case 0: 
-                    TRISE = 0x00;
-                    LATE = ptrArgs[2];
-                    break;
-                default: 
-                    bOK = false;
-                    strcat(sReply, txtErrorUnknownPin);
-                    break;
-            }
-            break;
-        default: 
-            break;
+    unsigned char nBit = 255; // Double purpose, bit number for single pin or TRIS value for whole port
+    unsigned char nMax = '7';
+    volatile unsigned char *pPort;
+    volatile unsigned char *pTris;
+
+    sReply[0] = 0x00;
+
+    str2upper(pArgs);
+    
+    pArg1 = strtok(pArgs, txtWhitespace);
+    pArg2 = strtok(NULL,  txtWhitespace);
+
+    if (!pArg1 || !pArg2){
+        bOK = false;
+        strcat(sReply, txtErrorMissingArgument);
     }
-    if (bOK) print(txtOkSp);  else  print(txtErrorSp); 
-    print("WRITE: ");
-    print(sReply);
-    print(txtCrLf);
+
+    if (bOK){
+        switch (pArg1[0]){
+            case 'A':
+                // RA6 OSC2 / RA7 n/a
+                pPort = &LATA; pTris = &TRISA; nMax = '5'; break;
+            case 'B':
+                pPort = &LATB; pTris = &TRISB; break;
+            case 'C':
+                // RC3 n/a / RC4 D- ReadOnly / RC5 D+ ReadOnly / RC6 TX UART / RC7 RX UART
+                pPort = &LATC; pTris = &TRISC; nMax = '2'; break;
+            case 'D':
+                pPort = &LATD; pTris = &TRISD; break;
+            case 'E':
+                // RE3..7 Does not exist
+                pPort = &LATE; pTris = &TRISE; nMax = '2'; break;
+            default: 
+                bOK = false;
+                strcat(sReply, txtErrorUnknownArgument);
+                break;
+        }
+    }
+
+    if (bOK){
+        if (pArg1 && pArg1[1]){
+            // Single pin
+            if (pArgs[1] >= '0' && pArgs[1] <= nMax){
+                nBit = pArgs[1] - 48;
+                clearbit(*pTris, nBit);
+                
+                sReply[0] = pArg1[0];
+                sReply[1] = pArg1[1];
+                sReply[2] = '=';
+                sReply[4] = 0;
+
+                if (strequal(pArg2, "ON") || strequal(pArg2, "1")){
+                    setbit(*pPort, nBit);
+                    sReply[3] = '1';
+                }
+                else{
+                    clearbit(*pPort, nBit);
+                    sReply[3] = '0';
+                }
+            }
+            else {
+                bOK = false;
+                strcat(sReply, txtErrorUnknownPin);
+            }
+        }
+        else{
+            // Whole port
+            *pTris = 0x00;
+            *pPort = (unsigned char) atoi(pArg2);
+
+            
+            sReply[0] = pArg1[0];
+            sReply[1] = '=';
+            byte2binstr(&sReply[2], *pPort);
+        }
+    }
+    
+    printReply(bOK, "WRITE", sReply);
 }
 
 

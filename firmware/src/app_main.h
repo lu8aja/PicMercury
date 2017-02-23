@@ -5,21 +5,19 @@
 
 
 /** CONSTANTS ******************************************************/
+extern const char txtVersion[];
 extern const char txtCrLf[];
 extern const char txtNum[];
 extern const char txtWhitespace[];
 
-extern const char txtOkSp[];
 extern const char txtOn[];
 extern const char txtOff[];
-
-extern const char txtErrorSp[];
-
 
 extern const char txtErrorUnknownCommand[];
 extern const char txtErrorUnknownArgument[];
 extern const char txtErrorUnknownPin[];
 extern const char txtErrorInvalidArgument[];
+extern const char txtErrorMissingArgument[];
 
 /** VARIABLES ******************************************************/
 
@@ -36,7 +34,7 @@ extern unsigned long MasterNotifyNow;      // When not 0, the main loop will not
 // MASTER LEDS
 extern unsigned int  MasterLedStatus;      // Bitfield of 16 leds statuses
 extern unsigned int  MasterLedCounter;     // Tick Counter
-#define       MasterLedTime         1500  // Ticks to count between
+#define       MasterLedTime         500    // Ticks to count between
 extern unsigned char MasterLedStep;
 extern unsigned int  MasterLedStepTime;
 extern unsigned int  MasterLedStepTick;
@@ -44,16 +42,18 @@ extern unsigned char MasterLedStepEnabled;
 extern unsigned char MasterLedStepRestart;
 
 // MASTER TONES
-extern unsigned char MasterToneEnabled;     //
-extern unsigned char MasterTonePeriod;     //
-extern unsigned char MasterToneTick;     //
-extern unsigned long MasterToneTime;     //
-extern unsigned long MasterToneCounter;     //
-extern unsigned long MasterToneTempo;   //
-extern unsigned char MasterTonePitch;     //
-extern unsigned char MasterToneRestart;     //
-extern unsigned char MasterToneStep;     //
-extern unsigned char MasterToneMode;
+// Configs
+extern unsigned char MasterToneEnabled;  // 0 = Off / 1 = On / 2 = Start Music
+extern unsigned char MasterToneMode;     // 0 = Single tone / 1 = Music
+extern unsigned int  MasterToneTempo;    // For music: Time per beat in ms
+extern signed   char MasterTonePitch;    // For music: Number of notes to shift the MIDI note
+extern unsigned char MasterToneRestart;  // 0 = Disable tones when Time is reached / 1 = Restart either music from step 1 or steady tone
+extern unsigned char MasterTonePeriod;   // Current tone semi-period
+extern unsigned int  MasterToneTime;     // Current note duration in ms
+// Runtime
+extern unsigned char MasterToneTick;     // Current tick counter (between wave inversions) 0 .. Period
+extern unsigned int  MasterToneCounter;  // Current note time counter 0 .. Time
+extern unsigned char MasterToneStep;     // Music Step (current note)
 
 // USB buffers
 #define sizeChunk      4
@@ -62,15 +62,15 @@ extern unsigned char MasterToneMode;
 #define sizeReply    100
 #define sizeStr       17
 
-extern unsigned char  bufChunk[];
-extern unsigned char  bufOutput[];
-extern unsigned char  bufCommand[];
-extern unsigned char  sReply[];
-extern unsigned char  sStr1[];
-extern unsigned char  sStr2[];
-extern unsigned char  sStr3[];
-extern unsigned char  sStr4[];
-extern unsigned char  sStr5[];
+extern unsigned char  bufChunk[sizeChunk];
+extern unsigned char  bufOutput[sizeOutput + 1];
+extern unsigned char  bufCommand[sizeCommand];
+extern unsigned char  sReply[sizeReply];
+extern unsigned char  sStr1[sizeStr];
+extern unsigned char  sStr2[sizeStr];
+extern unsigned char  sStr3[sizeStr];
+extern unsigned char  sStr4[sizeStr];
+extern unsigned char  sStr5[sizeStr * 4];
 
 extern unsigned char  posOutput;
 extern unsigned char  posCommand;

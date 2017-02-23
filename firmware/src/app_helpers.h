@@ -21,6 +21,7 @@
 
 #define strequal(a, b) (strcmp(a, b) == 0)
 
+void          printReply(const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply);
 void          putch(const unsigned char byte);
 void          print(const unsigned char *pStr);
 unsigned long str2long(const char *sStr);

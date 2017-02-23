@@ -54,6 +54,7 @@
       <itemPath>../src/app_leds.c</itemPath>
       <itemPath>../src/app_music.c</itemPath>
       <itemPath>../src/app_midi.c</itemPath>
+      <itemPath>../src/app_io.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

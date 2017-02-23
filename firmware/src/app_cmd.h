@@ -6,11 +6,11 @@
  */
 
 // APP Commands
-void APP_CMD_ping(unsigned char *ptrArgs);
-void APP_CMD_uptime(unsigned char *ptrArgs);
-void APP_CMD_debug(unsigned char *ptrArgs);
-void APP_CMD_tone(unsigned char *ptrArgs);
-void APP_CMD_monitor(unsigned char *ptrArgs);
-void APP_CMD_read(unsigned char *ptrArgs);
-void APP_CMD_write(unsigned char *ptrArgs);
-void APP_CMD_led(unsigned char *ptrArgs);
+void APP_CMD_ping(unsigned char *pArgs);
+void APP_CMD_uptime(unsigned char *pArgs);
+void APP_CMD_debug(unsigned char *pArgs);
+void APP_CMD_tone(unsigned char *pArgs);
+void APP_CMD_led(unsigned char *pArgs);
+void APP_CMD_monitor(unsigned char *pArgs);
+void APP_CMD_read(unsigned char *pArgs);
+void APP_CMD_write(unsigned char *pArgs);

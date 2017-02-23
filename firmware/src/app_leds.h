@@ -6,8 +6,6 @@
  */
 
 
-extern const unsigned char MasterLedMap[];
-
 extern const unsigned int MasterLedSteps[];
 
 extern const unsigned char MasterLedStepsLen;
