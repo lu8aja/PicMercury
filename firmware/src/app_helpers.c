@@ -41,6 +41,7 @@ inline void   str2upper(unsigned char *pStr);
 void          byte2binstr(char *sStr, unsigned char iNum);
 void          int2binstr(char *sStr, unsigned int iNum);
 void          clock2str(char *sStr, unsigned long ms);
+void          any2binstr(char *sStr, unsigned long iNum, unsigned char nLen);
 
 
 
@@ -50,7 +51,7 @@ void printReply(const unsigned char nType, const unsigned char *pCmd, const unsi
             print("-ERROR ");
             break;
         case 1:
-            print("-OK ");
+            print("+OK ");
             break;
         case 2:
             print("!ERROR ");
@@ -70,28 +71,58 @@ void printReply(const unsigned char nType, const unsigned char *pCmd, const unsi
 // Function used by stdio (printf, etc)
 void putch(const unsigned char byte){
     if (posOutput >= sizeOutput){
+        APP_outputUsb();
+        if (posOutput >= sizeOutput){
+            MasterToneMode      = 0;     // 0 = Single tone / 1 = Music
+            MasterToneRestart   = 0;     // 0 = Disable when Time is reached / 1 = Restart either music from step 0 or steady tone
+            MasterTonePeriod    = 6;     // Current tone semi-period
+            MasterToneEnabled   = 1;     // 0 = Off / 1 = On / 2 = Start Music
+            MasterToneCounter   = 4000;  // ms
+
+            setbit(MasterLedStatus, LED_ALARM);
+            //MasterConsoleStatus.bufferOverrun = 1;
+            strcpy(bufOutput, "\r\n!ERROR OVERFLOW ");
+            posOutput = 19;
+/*
+            posOutput = 0;
+            bufOutput[posOutput] = '\r';
+            posOutput++;
+            bufOutput[posOutput] = '\n';
+            posOutput++;
+            bufOutput[posOutput] = '!';
+            posOutput++;
+            bufOutput[posOutput] = 'O';
+            posOutput++;
+            bufOutput[posOutput] = 'V';
+            posOutput++;
+            bufOutput[posOutput] = 'R';
+            posOutput++;
+            bufOutput[posOutput] = ' ';
+            posOutput++;
+ * */
+        }
+        /*
         if (USBUSARTIsTxTrfReady()){
             putsUSBUSART(bufOutput);
             posOutput = 0;
+            CDCTxService();
         }
         else{
             // TODO: TBD what to do
-            //putsUSBUSART("\r\n-ERROR OUTPUT OVERFLOW!\r\n");
+            putsUSBUSART("\r\n-ERROR OUTPUT OVERFLOW!\r\n");
+            CDCTxService();
             MasterConsoleStatus.bufferOverrun = 1;
             setbit(MasterLedStatus, LED_ALARM);
             // Clear buffer entirely
             posOutput = 0;
             bufOutput[posOutput] = 0x00;
         }
+         * */
     }
 
     bufOutput[posOutput] = byte;
     posOutput++;
     bufOutput[posOutput] = 0x00;
-    if (posOutput >= sizeOutput && USBUSARTIsTxTrfReady()){
-        putsUSBUSART(bufOutput);
-        posOutput = 0;
-    }
 }
 
 
@@ -168,31 +199,43 @@ inline void str2upper(unsigned char *pStr){
 
 void byte2binstr(char *sStr, unsigned char iNum){
 	sStr[8] = 0x00;
-	sStr[7] = (iNum & 1)   ? '1' : '0';
-	sStr[6] = (iNum & 2)   ? '1' : '0';
-	sStr[5] = (iNum & 4)   ? '1' : '0';
-	sStr[4] = (iNum & 8)   ? '1' : '0';
-	sStr[3] = (iNum & 16)  ? '1' : '0';
-	sStr[2] = (iNum & 32)  ? '1' : '0';
-	sStr[1] = (iNum & 64)  ? '1' : '0';
-	sStr[0] = (iNum & 128) ? '1' : '0';
+	sStr[7] = (iNum & 0x01)  ? '1' : '0';
+	sStr[6] = (iNum & 0x02)  ? '1' : '0';
+	sStr[5] = (iNum & 0x04)  ? '1' : '0';
+	sStr[4] = (iNum & 0x08)  ? '1' : '0';
+	sStr[3] = (iNum & 0x10)  ? '1' : '0';
+	sStr[2] = (iNum & 0x20)  ? '1' : '0';
+	sStr[1] = (iNum & 0x40)  ? '1' : '0';
+	sStr[0] = (iNum & 0x80 ) ? '1' : '0';
 } //end byte2binstr
 
 void int2binstr(char *sStr, unsigned int iNum){
     unsigned int  n = 1;
-    unsigned char m = 15;
-	sStr1[16] = 0x00;
-    sStr1[0]  = '0'; // Ints even unsigned have issues with msb
-    
+    unsigned char m = 16;
+	sStr1[m] = 0x00;
+   
     do {
+        m--;
         sStr[m] = (iNum & n)   ? '1' : '0';
-        if (m){
-            m--;
-            n = n << 1;
-        }
+        n = n << 1;
     }
     while (m);
 } //end int2binstr
+
+void          any2binstr(char *sStr, unsigned long iNum, unsigned char nLen){
+    unsigned long n = 1;
+    if (nLen > 32){
+        nLen = 32;
+    }
+	sStr1[nLen] = 0x00;
+   
+    do {
+        nLen--;
+        sStr[nLen] = (iNum & n)   ? '1' : '0';
+        n = n << 1;
+    }
+    while (nLen);
+}
 
 void clock2str(char *sStr, unsigned long ms){
 	unsigned char tick, len, i, h;

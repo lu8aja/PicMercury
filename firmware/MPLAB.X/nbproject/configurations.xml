@@ -29,6 +29,7 @@
       <itemPath>../src/system_config.h</itemPath>
       <itemPath>../src/app_cmd.h</itemPath>
       <itemPath>../src/app_helpers.h</itemPath>
+      <itemPath>../src/app_programs.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -55,6 +56,7 @@
       <itemPath>../src/app_music.c</itemPath>
       <itemPath>../src/app_midi.c</itemPath>
       <itemPath>../src/app_io.c</itemPath>
+      <itemPath>../src/app_programs.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

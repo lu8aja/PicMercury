@@ -32,4 +32,5 @@ inline void   str2lower(unsigned char *pStr);
 inline void   str2upper(unsigned char *pStr);
 void          byte2binstr(char *sStr, unsigned char iNum);
 void          int2binstr(char *sStr, unsigned int iNum);
+void          any2binstr(char *sStr, unsigned long iNum, unsigned char nLen);
 void          clock2str(char *sStr, unsigned long ms);

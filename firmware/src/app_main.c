@@ -40,6 +40,7 @@
 #include "app_music.h"
 #include "app_midi.h"
 #include "app_cmd.h"
+#include "app_programs.h"
 
 #include "system_config.h"
 
@@ -79,36 +80,37 @@ const char txtErrorMissingArgument[] = "Missing argument";
 
 
 /** VARIABLES ******************************************************/
-
+/*** MASTER DEBUG ***/
 unsigned char MasterDebug         = 0;     // 
 
-// MASTER CLOCK
-#define       MasterClockTickCount  23     /* Number of ticks per ms */
+/*** MASTER CLOCK */
+#define       MasterClockTickCount  23     // Number of ticks per ms
 unsigned char MasterClockTick     = 23;    // Tick counter 0,1,2
 unsigned long MasterClockMS       = 0;     // MS counter, good for up to over a month
 
-// MASTER NOTIFY
+/*** MASTER NOTIFY ***/
 unsigned int  MasterNotifyCounter = 0;     // Notification timer counter    
 unsigned int  MasterNotify        = 60000; // When to notify (1 minute))
 unsigned long MasterNotifyNow     = 0;     // When not 0, the main loop will notify
 
-// MASTER LEDS
+/*** MASTER LEDS ***/
+// Configs
+#define       MasterLedTime         500    // Ticks to count while flashing led
+unsigned char MasterLedStepEnabled= 0;     // 0 = Off / 1 = On / 2 = Start Music
+unsigned char MasterLedStepRestart= 0;     // 0 = Disable when Time is reached / 1 = Restart 
+unsigned int  MasterLedStepTime   = 1500;  // Time for each step
+// Runtime
 unsigned int  MasterLedStatus     = 0;     // Bitfield of 16 leds statuses
-unsigned int  MasterLedCounter    = 0;     // Tick Counter
-#define       MasterLedTime         500    // Ticks to count between
-unsigned char MasterLedStep       = 0;
-unsigned int  MasterLedStepTime   = 1500;
-unsigned int  MasterLedStepTick   = 0;
-unsigned char MasterLedStepEnabled= 0;
-unsigned char MasterLedStepRestart= 0;
-
-// MASTER TONES
+unsigned int  MasterLedCounter    = 0;     // Flashing tick period counter
+unsigned int  MasterLedStepTick   = 0;     // Tick counter for each step 0..Time
+unsigned char MasterLedStep       = 0;     // Current step in sequence
+/*** MASTER TONES ***/
 // Configs
 unsigned char MasterToneEnabled   = 0;     // 0 = Off / 1 = On / 2 = Start Music
 unsigned char MasterToneMode      = 1;     // 0 = Single tone / 1 = Music
-unsigned int  MasterToneTempo     = 40;    // For music: Time per beat in ms
+unsigned int  MasterToneTempo     = 35;    // For music: Time per beat in ms
 signed   char MasterTonePitch     = 0;     // For music: Number of notes to shift the MIDI note
-unsigned char MasterToneRestart   = 0;     // 0 = Disable tones when Time is reached / 1 = Restart either music from step 1 or steady tone
+unsigned char MasterToneRestart   = 0;     // 0 = Disable when Time is reached / 1 = Restart either music from step 0 or steady tone
 unsigned char MasterTonePeriod    = 0;     // Current tone semi-period
 unsigned int  MasterToneTime      = 0;     // Current note duration in ms
 // Runtime
@@ -116,16 +118,34 @@ unsigned char MasterToneTick      = 0;     // Current tick counter (between wave
 unsigned int  MasterToneCounter   = 0;     // Current note time counter 0 .. Time
 unsigned char MasterToneStep      = 0;     // Music Step (current note)
 
+unsigned char MasterSerialOut     = 0;
+
+/*** MASTER KEYS ***/
+unsigned int  MasterKeysFunction = 0;      // Runtime value for Function keys
+unsigned int  MasterKeysAddress  = 0;      // Runtime value for Address keys
+unsigned int  MasterKeysInput    = 0;      // Runtime value for Input keys
+unsigned int  MasterKeysSwitches = 0;      // Runtime value for misc console switches
+
+/*** MASTER BUTTONS ***/
+unsigned int  MasterButtonsTick    = 0;    // Tick counter (runtime)
+unsigned int  MasterButtonsBit     = 0;    // Bit pointer 0..7
+#define       MasterButtonsTime      30    // Buttons check interval (ms)
+unsigned int  MasterButtonsRunEnabled = 1; // Allows running programs from keyboard using the prepulse button and the address row
+
+/*** MASTER PROGRAM ***/
+// Configs
+unsigned long MasterProgramTime    = 1000; // Default program step time (it can be changed via the wait cmd))
+unsigned int  MasterProgramRun     = 0;    // Program number being run
+unsigned int  MasterProgramEnabled = 1;    // 0 = Off / 1 = On / 2 = Start Program
+// Runtime
+unsigned long MasterProgramTick    = 0;    // Tick counter (runtime)
+unsigned int  MasterProgramStep    = 0;    // Step counter/pointer (runtime)
 
 
-// MASTER KEYBOARD
-unsigned int  MasterButtonsTick    = 0;  // Tick counter (runtime)
-unsigned int  MasterButtonsBit     = 0;  // Bit pointer 0..7
-#define       MasterButtonsTime      30  // Buttons check interval (ms)
-
-// USB buffers
+/*** USB buffers ***/
 #define sizeChunk      4
-#define sizeOutput   255
+#define sizeOutput   512
+#define sizeOutUsb   120
 #define sizeCommand   64
 #define sizeReply    100
 #define sizeStr       17
@@ -133,6 +153,7 @@ unsigned int  MasterButtonsBit     = 0;  // Bit pointer 0..7
 unsigned char  bufChunk[sizeChunk];
 unsigned char  bufOutput[sizeOutput + 1];
 unsigned char  bufCommand[sizeCommand];
+unsigned char  bufTmp[sizeOutUsb + 1];
 unsigned char  sReply[sizeReply];
 unsigned char  sStr1[sizeStr];
 unsigned char  sStr2[sizeStr];
@@ -140,10 +161,10 @@ unsigned char  sStr3[sizeStr];
 unsigned char  sStr4[sizeStr];
 unsigned char  sStr5[sizeStr * 4];
 
-unsigned char  posOutput       = 0;
+unsigned int   posOutput       = 0;
 unsigned char  posCommand      = 0;
 
-// Status of IO
+/*** Status of IO ***/
 unsigned char nStatus_PortA    = 0;
 unsigned char nStatus_PortB    = 0;
 unsigned char nStatus_PortC    = 0;
@@ -162,8 +183,8 @@ unsigned char nStatus_MonitorC = 0;
 unsigned char nStatus_MonitorD = 0;
 unsigned char nStatus_MonitorE = 0;
 
-// 6 bytes
-// Console
+
+/*** Console ***/
 typedef struct {
 	unsigned usb:1;
 	unsigned connected:1;
@@ -172,7 +193,9 @@ typedef struct {
 	unsigned bufferOverrun:1;
 } console_t;
 
-console_t MasterConsoleStatus;
+console_t MasterConsoleStatus = {0, 0, 0, 0, 0};
+
+
 
 /** PUBLIC PROTOTYPES ***************************************/
 // Main procs
@@ -187,9 +210,12 @@ void         APP_executeCommand(void);
 void         APP_updateUsbLed(void);
 
 // APP helper functions
-void APP_checkButtons(void);
-void APP_checkPins(const unsigned char cPortName);
 void APP_updateLeds(void);
+void APP_checkButtons(void);
+void APP_getKeys(void);
+void APP_checkPins(const unsigned char cPortName);
+void APP_getStatusReply(void);
+void APP_outputUsb(void);
 
 
 /** FUNCTIONS *******************************************************/
@@ -212,6 +238,27 @@ void APP_init(void){
 	MasterConsoleStatus.notify        = 0;
 	MasterConsoleStatus.reportOnce    = 0;
 	MasterConsoleStatus.bufferOverrun = 0;
+    
+    
+    // UART
+	TRISCbits.TRISC6  = 1; // TX pin
+
+	BAUDCONbits.WUE   = 0; // Wake-up Enable bit
+	BAUDCONbits.ABDEN = 0; // Auto-Baud Detect Enable bit
+	BAUDCONbits.BRG16 = 1; // 16-Bit Baud Rate Register Enable bit
+	BAUDCONbits.TXCKP = 0; // Inverted
+	SPBRGH = 230;          // 50 BAUDS
+	SPBRG  = 255;          // 
+
+
+	TXSTAbits.SYNC = 0; // EUSART Mode Select bit
+	TXSTAbits.BRGH = 0; // High Baud Rate Select bit
+	TXSTAbits.TX9  = 0; // 9-Bit Transmit Enable bit
+	TXSTAbits.TXEN = 1; // Transmit Enable bit
+	
+	RCSTAbits.RX9  = 0; // 9-Bit Receive Enable bit
+	RCSTAbits.CREN = 0; // Continuous Receive Enable bit
+	RCSTAbits.SPEN = 1; // Serial Port Enable bit
     
 	// Timer0 setup (Clock 1:16 => once every 1/3 ms)
 	T0CON               = 0b01000000; // [0]Off, [1]8bit, [0]CLKO, [0]L2H, [0]PreOn, [011]1:16
@@ -295,6 +342,10 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
             // MASTER LED STEPS
             if (MasterLedStepTick){
                 MasterLedStepTick--;
+            }
+            
+            if (MasterProgramTick){
+                MasterProgramTick--;
             }
 
             // USB LED
@@ -447,7 +498,43 @@ void APP_main(){
         MasterLedCounter = MasterLedTime;
     }
 
+    if (MasterProgramEnabled && !posCommand){
+        if (MasterProgramEnabled == 2){
+            MasterProgramTick = 0;
+        }
 
+        if (!MasterProgramTick){
+            const unsigned char *pProgram = MasterPrograms[MasterProgramRun];
+            pProgram += MasterProgramStep;
+            
+            if (MasterProgramEnabled == 2){
+                MasterProgramStep    = 0;
+                MasterProgramEnabled = 1;
+            }
+            
+            if (!strlen(pProgram)){
+                MasterProgramEnabled = 0;
+                printReply(3, "RUN", "Done!");
+            }
+            else {
+                MasterProgramStep += strlen(pProgram) + 1;
+            }
+            
+            // Next tone
+            if (MasterProgramEnabled){
+                MasterProgramTick = MasterProgramTime;
+                strcpy(bufCommand, pProgram);
+                APP_executeCommand();
+
+                sprintf(sReply, "#%02u s:%02u T:%02u", 
+                    MasterProgramRun,
+                    MasterProgramStep,
+                    MasterProgramTick);
+
+                printReply(3, "RUN", sReply);
+            }
+        }
+    }
                 
     // INPUT handling
     if(USBUSARTIsTxTrfReady() == true){
@@ -475,11 +562,51 @@ void APP_main(){
         while(nBytes > 0);
     }
 
+    if (PIR1bits.TXIF){
+        TXREG = MasterSerialOut;
+    }
+    
     // OUTPUT handling
-    if(USBUSARTIsTxTrfReady() == true){
-        if(posOutput > 0){
-            putUSBUSART(bufOutput, posOutput);
-            posOutput = 0;
+    APP_outputUsb();
+    /*
+    if(posOutput > 0){
+        if(USBUSARTIsTxTrfReady()){
+            if(posOutput > sizeOutUsb){
+                strncpy(bufTmp, bufOutput, sizeOutUsb);
+                bufTmp[sizeOutUsb] = '#';
+                putUSBUSART(bufTmp, sizeOutUsb + 1);
+                strcpy(bufOutput, &bufOutput[sizeOutUsb]);
+                posOutput = posOutput - sizeOutUsb;
+                bufOutput[posOutput] = 0x00;
+                //memmove();
+            }
+            else {
+                putUSBUSART(bufOutput, (unsigned char) posOutput);
+                posOutput = 0;
+            }
+        }
+    }
+
+    CDCTxService();
+     * */
+}
+
+void APP_outputUsb(void){
+    unsigned char len;
+    if(posOutput > 0){
+        if(USBUSARTIsTxTrfReady()){
+            if(posOutput >= sizeOutUsb){
+                len = sizeOutUsb;
+            }
+            else {
+                len = posOutput;
+            }
+            strncpy(bufTmp, bufOutput, len);
+            putUSBUSART(bufTmp, len);
+            strcpy(bufOutput, &bufOutput[len]);
+            posOutput = posOutput - len;
+            bufOutput[posOutput] = 0x00;
+            //memmove();
         }
     }
 
@@ -544,6 +671,37 @@ void APP_executeCommand(void){
     else if (strequal(ptrCommand, "led")){
         APP_CMD_led(ptrArgs);
     }
+    // KEYS
+    else if (strequal(ptrCommand, "keys")){
+        APP_CMD_keys(ptrArgs);
+    }
+    // RUN
+    else if (strequal(ptrCommand, "run")){
+        APP_CMD_run(ptrArgs);
+    }
+    // VAR
+    else if (strequal(ptrCommand, "var")){
+        APP_CMD_var(ptrArgs);
+    }
+    // MEM
+    else if (strequal(ptrCommand, "mem")){
+        APP_CMD_mem(ptrArgs);
+    }
+    // DUMP
+    /*
+    else if (strequal(ptrCommand, "dump")){
+        APP_CMD_dump(ptrArgs);
+    }
+     * */
+    // WAIT
+    else if (strequal(ptrCommand, "uart")){
+        MasterSerialOut = (unsigned char) atoi(ptrArgs);
+    }
+    // WAIT
+    else if (strequal(ptrCommand, "wait")){
+        MasterProgramTick = atol(ptrArgs);
+    }
+    // VERSION
     else if (strequal(ptrCommand, "version")){
         printReply(1, "VERSION", txtVersion);
     }
@@ -555,8 +713,7 @@ void APP_executeCommand(void){
 }
 
 
-/* APP FUNCTIONS */
-
+/* APP INTERFACE FUNCTIONS */
 
 void APP_updateLeds(void){
     // Note: We start with 8 just because that led is the only one which does not exist
@@ -606,6 +763,7 @@ void APP_checkButtons(void){
     unsigned char nBtn;
     unsigned char nOnes = 0;
     unsigned char n = 0;
+    bool bChanged = 0;
     
     PIN_KEYS_OUT_0 = 0;
     PIN_KEYS_OUT_1 = 0;
@@ -664,8 +822,62 @@ void APP_checkButtons(void){
             sReply[2] = MasterButtons[nBtn].status + 48;
             sReply[3] = 0x00;
             printReply(3, "BUTTON", sReply);
+            
+            bChanged = 1;
         }
     }
+    if (bChanged){
+        APP_getKeys();
+        APP_getStatusReply();
+        printReply(3, "STATUS", sReply);
+
+        if (MasterButtonsRunEnabled && !MasterProgramEnabled){
+            unsigned char s[5];
+            sprintf(s, "%u", MasterKeysAddress & 0x07);
+            APP_CMD_run(s);
+        }
+    }
+}
+
+void APP_getKeys(void){
+    volatile unsigned char nLsb = 0;
+
+    // Keyboard Inputs
+    PIN_KEYS_IN_TRIS = 0xff;
+    
+    // Keyboard Outputs
+    PIN_KEYS_OUT_0 = 0;
+    PIN_KEYS_OUT_1 = 0;
+    PIN_KEYS_OUT_2 = 0;
+    PIN_KEYS_OUT_3 = 0;
+    PIN_KEYS_OUT_4 = 0;
+    PIN_KEYS_OUT_0_TRIS = OUTPUT;
+    PIN_KEYS_OUT_1_TRIS = OUTPUT;
+    PIN_KEYS_OUT_2_TRIS = OUTPUT;
+    PIN_KEYS_OUT_3_TRIS = OUTPUT;
+    PIN_KEYS_OUT_4_TRIS = OUTPUT;
+    
+    // Get the shared LSB from C0
+    PIN_KEYS_OUT_3 = 1;
+    nLsb = PIN_KEYS_IN;
+    PIN_KEYS_OUT_3 = 0;
+    
+    PIN_KEYS_OUT_0 = 1;
+    MasterKeysInput    = ((unsigned int) PIN_KEYS_IN << 2) | ((nLsb & 0b00001100) >> 2);
+    PIN_KEYS_OUT_0 = 0;
+
+    PIN_KEYS_OUT_1 = 1;
+    MasterKeysAddress  = ((unsigned int) PIN_KEYS_IN << 2) | ((nLsb & 0b00110000) >> 4);
+    PIN_KEYS_OUT_1 = 0;
+
+    PIN_KEYS_OUT_2 = 1;
+    MasterKeysFunction = ((unsigned int) PIN_KEYS_IN << 2) | ((nLsb & 0b11000000) >> 6);
+    PIN_KEYS_OUT_2 = 0;
+    
+    PIN_KEYS_OUT_4 = 1;
+    MasterKeysSwitches = (unsigned int) (((unsigned int) PIN_KEYS_IN << 8) | (unsigned int) nLsb);
+    PIN_KEYS_OUT_4 = 0;
+
 }
 
 void APP_checkPins(unsigned char cPortName){
@@ -739,6 +951,8 @@ void APP_checkPins(unsigned char cPortName){
     }
 }
 
+/* USB stuff within APP */
+
 void APP_usbConfigured(void){
     CDCInitEP();
     line_coding.bCharFormat = 0;
@@ -792,4 +1006,22 @@ void APP_updateUsbLed(void){
 
     /* Increment the millisecond counter. */
     ledCount++;
+}
+
+void APP_getStatusReply(void){
+    unsigned char n = 0;
+    n |= MasterButtons[2].status;
+    n = n << 1;
+    n |= MasterButtons[1].status;
+    n = n << 1;
+    n |= MasterButtons[0].status;
+    
+    sprintf(sReply, "F: %04x / A: %04x / I: %04x / S: %04x / B: %01x / L: %04x",
+        MasterKeysFunction, 
+        MasterKeysAddress,
+        MasterKeysInput,
+        MasterKeysSwitches,
+        n,
+        MasterLedStatus
+    );
 }
