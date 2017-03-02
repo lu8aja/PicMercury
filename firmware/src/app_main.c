@@ -31,169 +31,38 @@
 #include <string.h>
 #include <stddef.h>
 
+
 #include "usb.h"
 #include "usb_device_cdc.h"
-
-#include "app_io.h"
-#include "app_helpers.h"
-#include "app_leds.h"
-#include "app_music.h"
-#include "app_midi.h"
-#include "app_cmd.h"
-#include "app_programs.h"
-
 #include "system_config.h"
 
-/** MACROS **/
-/* Bit Operation macros */
-#define setbit(b,n)   ( b |=   (1 << n))        /* Set bit number n in byte b   */
-#define clearbit(b,n) ( b &= (~(1 << n)))       /* Clear bit number n in byte b */
-#define readbit(b,n)  ((b  &   (1 << n)) >> n)  /* Read bit number n in byte b  */
-#define flipbit(b,n)  ( b ^=   (1 << n))        /* Flip bit number n in byte b  */
+#include "flags.h"
 
-#define reciprocal(a, fp)  ( (( 1 << fp) + a - 1) / a )  /* Reciprocal 1/x without using floats */
+#include "data_eeprom.h"
 
-#define bit_is_set(b,n)   (b   & (1 << n))     /* Test if bit number n in byte b is set   */
-#define bit_is_clear(b,n) (!(b & (1 << n)))    /* Test if bit number n in byte b is clear */
+#include "app_globals.h"
+#include "app_io.h"
+#include "app_helpers.h"
+#include "app_cmd.h"
 
-/** CONSTANTS ******************************************************/
-const char txtVersion[]    = "0.2.1";
+#include "service_i2c.h"       // I2C library
 
-const char txtCrLf[]       = "\r\n";
-//const char txtAlphaLC[]    = "abcdefghijklmnopqrstuvwxyz";
-//const char txtAlphaUC[]    = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-//const char txtAlpha[]      = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-const char txtNum[]        = "0123456789";
-//const char txtAlphaNum[]   = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-const char txtWhitespace[] = " \t\r\n";
+// Optional libraries with associated commands
 
-const char txtOn[]        = "On";
-const char txtOff[]       = "Off";
+#if defined(DEVICE_PUNCHER)
+    //#include "service_puncher.h"   // Puncher library with associated PUNCH cmd
+#endif
 
-const char txtErrorMissingCommand[]  = "Missing command";
-const char txtErrorUnknownCommand[]  = "Unknown command";
-const char txtErrorUnknownArgument[] = "Unknown argument";
-const char txtErrorUnknownPin[]      = "Unknown pin";
-const char txtErrorInvalidArgument[] = "Invalid argument";
-const char txtErrorMissingArgument[] = "Missing argument";
+#if defined(DEVICE_CONSOLE)
+    // #include "service_leds.h"      // Led matrix
+    // #include "service_keys.h"      // Keyboard diode matrix
+    // #include "service_music.h"     // Tone generator
+    // #include "service_uart.h"      // UART
+    // #include "service_monitor.h"   // Pin monitor
+    // #include "service_program.h"   // Program service
+#endif
 
 
-
-/** VARIABLES ******************************************************/
-/*** MASTER DEBUG ***/
-unsigned char MasterDebug         = 0;     // 
-
-/*** MASTER CLOCK */
-#define       MasterClockTickCount  23     // Number of ticks per ms
-unsigned char MasterClockTick     = 23;    // Tick counter 0,1,2
-unsigned long MasterClockMS       = 0;     // MS counter, good for up to over a month
-
-/*** MASTER NOTIFY ***/
-unsigned int  MasterNotifyCounter = 0;     // Notification timer counter    
-unsigned int  MasterNotify        = 60000; // When to notify (1 minute))
-unsigned long MasterNotifyNow     = 0;     // When not 0, the main loop will notify
-
-/*** MASTER LEDS ***/
-// Configs
-#define       MasterLedTime         500    // Ticks to count while flashing led
-unsigned char MasterLedStepEnabled= 0;     // 0 = Off / 1 = On / 2 = Start Music
-unsigned char MasterLedStepRestart= 0;     // 0 = Disable when Time is reached / 1 = Restart 
-unsigned int  MasterLedStepTime   = 1500;  // Time for each step
-// Runtime
-unsigned int  MasterLedStatus     = 0;     // Bitfield of 16 leds statuses
-unsigned int  MasterLedCounter    = 0;     // Flashing tick period counter
-unsigned int  MasterLedStepTick   = 0;     // Tick counter for each step 0..Time
-unsigned char MasterLedStep       = 0;     // Current step in sequence
-/*** MASTER TONES ***/
-// Configs
-unsigned char MasterToneEnabled   = 0;     // 0 = Off / 1 = On / 2 = Start Music
-unsigned char MasterToneMode      = 1;     // 0 = Single tone / 1 = Music
-unsigned int  MasterToneTempo     = 35;    // For music: Time per beat in ms
-signed   char MasterTonePitch     = 0;     // For music: Number of notes to shift the MIDI note
-unsigned char MasterToneRestart   = 0;     // 0 = Disable when Time is reached / 1 = Restart either music from step 0 or steady tone
-unsigned char MasterTonePeriod    = 0;     // Current tone semi-period
-unsigned int  MasterToneTime      = 0;     // Current note duration in ms
-// Runtime
-unsigned char MasterToneTick      = 0;     // Current tick counter (between wave inversions) 0 .. Period
-unsigned int  MasterToneCounter   = 0;     // Current note time counter 0 .. Time
-unsigned char MasterToneStep      = 0;     // Music Step (current note)
-
-unsigned char MasterSerialOut     = 0;
-
-/*** MASTER KEYS ***/
-unsigned int  MasterKeysFunction = 0;      // Runtime value for Function keys
-unsigned int  MasterKeysAddress  = 0;      // Runtime value for Address keys
-unsigned int  MasterKeysInput    = 0;      // Runtime value for Input keys
-unsigned int  MasterKeysSwitches = 0;      // Runtime value for misc console switches
-
-/*** MASTER BUTTONS ***/
-unsigned int  MasterButtonsTick    = 0;    // Tick counter (runtime)
-unsigned int  MasterButtonsBit     = 0;    // Bit pointer 0..7
-#define       MasterButtonsTime      30    // Buttons check interval (ms)
-unsigned int  MasterButtonsRunEnabled = 1; // Allows running programs from keyboard using the prepulse button and the address row
-
-/*** MASTER PROGRAM ***/
-// Configs
-unsigned long MasterProgramTime    = 1000; // Default program step time (it can be changed via the wait cmd))
-unsigned int  MasterProgramRun     = 0;    // Program number being run
-unsigned int  MasterProgramEnabled = 1;    // 0 = Off / 1 = On / 2 = Start Program
-// Runtime
-unsigned long MasterProgramTick    = 0;    // Tick counter (runtime)
-unsigned int  MasterProgramStep    = 0;    // Step counter/pointer (runtime)
-
-
-/*** USB buffers ***/
-#define sizeChunk      4
-#define sizeOutput   512
-#define sizeOutUsb   120
-#define sizeCommand   64
-#define sizeReply    100
-#define sizeStr       17
-
-unsigned char  bufChunk[sizeChunk];
-unsigned char  bufOutput[sizeOutput + 1];
-unsigned char  bufCommand[sizeCommand];
-unsigned char  bufTmp[sizeOutUsb + 1];
-unsigned char  sReply[sizeReply];
-unsigned char  sStr1[sizeStr];
-unsigned char  sStr2[sizeStr];
-unsigned char  sStr3[sizeStr];
-unsigned char  sStr4[sizeStr];
-unsigned char  sStr5[sizeStr * 4];
-
-unsigned int   posOutput       = 0;
-unsigned char  posCommand      = 0;
-
-/*** Status of IO ***/
-unsigned char nStatus_PortA    = 0;
-unsigned char nStatus_PortB    = 0;
-unsigned char nStatus_PortC    = 0;
-unsigned char nStatus_PortD    = 0;
-unsigned char nStatus_PortE    = 0;
-
-unsigned char nStatus_TrisA    = 0;
-unsigned char nStatus_TrisB    = 0;
-unsigned char nStatus_TrisC    = 0;
-unsigned char nStatus_TrisD    = 0;
-unsigned char nStatus_TrisE    = 0;
-
-unsigned char nStatus_MonitorA = 0;
-unsigned char nStatus_MonitorB = 0;
-unsigned char nStatus_MonitorC = 0;
-unsigned char nStatus_MonitorD = 0;
-unsigned char nStatus_MonitorE = 0;
-
-
-/*** Console ***/
-typedef struct {
-	unsigned usb:1;
-	unsigned connected:1;
-	unsigned notify:1;
-	unsigned reportOnce:1;
-	unsigned bufferOverrun:1;
-} console_t;
-
-console_t MasterConsoleStatus = {0, 0, 0, 0, 0};
 
 
 
@@ -207,98 +76,79 @@ void         APP_main(void);
 void         APP_usbConfigured(void);
 void         APP_checkCommands(void);
 void         APP_executeCommand(void);
-void         APP_updateUsbLed(void);
 
-// APP helper functions
-void APP_updateLeds(void);
-void APP_checkButtons(void);
-void APP_getKeys(void);
-void APP_checkPins(const unsigned char cPortName);
-void APP_getStatusReply(void);
-void APP_outputUsb(void);
+void APP_USB_input(void);
+void APP_USB_output(void);
 
 
 /** FUNCTIONS *******************************************************/
 void APP_init(void){
-    // Keyboard Inputs
-    PIN_KEYS_IN_TRIS = 0xff;
-    
-    // Keyboard Outputs
-    PIN_KEYS_OUT_0 = 0;
-    PIN_KEYS_OUT_1 = 0;
-    PIN_KEYS_OUT_2 = 0;
-    PIN_KEYS_OUT_3 = 0;
-    PIN_KEYS_OUT_4 = 0;
-    PIN_KEYS_OUT_0_TRIS = OUTPUT;
-    PIN_KEYS_OUT_1_TRIS = OUTPUT;
-    PIN_KEYS_OUT_2_TRIS = OUTPUT;
-    PIN_KEYS_OUT_3_TRIS = OUTPUT;
-    PIN_KEYS_OUT_4_TRIS = OUTPUT;
-
 	MasterConsoleStatus.notify        = 0;
 	MasterConsoleStatus.reportOnce    = 0;
 	MasterConsoleStatus.bufferOverrun = 0;
     
+    ADCON1 = 0b00001111;  // We are not using any analog input
+                          // This is specially important for I2C
     
-    // UART
-	TRISCbits.TRISC6  = 1; // TX pin
-
-	BAUDCONbits.WUE   = 0; // Wake-up Enable bit
-	BAUDCONbits.ABDEN = 0; // Auto-Baud Detect Enable bit
-	BAUDCONbits.BRG16 = 1; // 16-Bit Baud Rate Register Enable bit
-	BAUDCONbits.TXCKP = 0; // Inverted
-	SPBRGH = 230;          // 50 BAUDS
-	SPBRG  = 255;          // 
-
-
-	TXSTAbits.SYNC = 0; // EUSART Mode Select bit
-	TXSTAbits.BRGH = 0; // High Baud Rate Select bit
-	TXSTAbits.TX9  = 0; // 9-Bit Transmit Enable bit
-	TXSTAbits.TXEN = 1; // Transmit Enable bit
-	
-	RCSTAbits.RX9  = 0; // 9-Bit Receive Enable bit
-	RCSTAbits.CREN = 0; // Continuous Receive Enable bit
-	RCSTAbits.SPEN = 1; // Serial Port Enable bit
+    #if defined(LIB_KEYS)
+        Keys_init();
+    #endif
     
+    #if defined(LIB_LEDS)
+        Leds_init();
+    #endif
+
+    #if defined(LIB_MUSIC)
+        Music_init();
+    #endif
+
+    #if defined(LIB_PUNCHER)
+        Puncher_init(1, 1);
+    #endif
+
+    #if defined(LIB_PROGRAM)
+        Program_init();
+    #endif
+
+    #if defined(LIB_UART)
+        UART_init();
+    #endif
+
+    
+    #if defined(LIB_I2C)
+        #if defined(DEVICE_CONSOLE)
+            I2C_Master_init();
+        #else
+            #if defined(DEVICE_PUNCHER)
+                MasterI2C.Address = I2C_ADDRESS_PUNCHER;
+            #elif defined(DEVICE_READER)
+                MasterI2C.Address = I2C_ADDRESS_READER;
+            #elif defined(DEVICE_CRTS)
+                MasterI2C.Address = I2C_ADDRESS_CRTS;
+            #else // Some other unknown device!?
+                MasterI2C.Address = 0b01111111;
+            #endif
+            I2C_Slave_init();
+        #endif
+    #endif
+
 	// Timer0 setup (Clock 1:16 => once every 1/3 ms)
 	T0CON               = 0b01000000; // [0]Off, [1]8bit, [0]CLKO, [0]L2H, [0]PreOn, [011]1:16
 	INTCONbits.TMR0IE   = 1;
 	T0CONbits.TMR0ON    = 1;          // Enable
-/*
-	// Timer2 setup
-	T2CON               = 0b01111011; // 1:16 Off 1:16
-	PR2                 = 0x80;       // Period register
-	T2CONbits.TMR2ON    = 1;          // Enable timer
-	IPR1bits.TMR2IP     = 1;          // High priority interrupt
-	PIE1bits.TMR2IE     = 1;          // Int enable
-
-	// INT2 setup
-    INTCON3bits.INT2IP  = 1;  // High priority
-    INTCON3bits.INT2IF  = 0;  // Int Flag
-    INTCON2bits.INTEDG2 = 0;  // Falling Edge
-	INTCON3bits.INT2IE  = 1;  // Int enable
- */
+    
+    INTCONbits.GIE      = 1;          // Enable global interrupts
+    INTCONbits.PEIE     = 1;          // Enable peripheral interrupts
 } // End APP_init
 
 void interrupt APP_interrupt_high(void){             // High priority interrupt
 	// CLOCK: Timer0 overflow int
 	if (INTCONbits.TMR0IF){
         
-        // MASTER TONES
-        if (MasterToneEnabled){
-            if (MasterToneTick){
-                MasterToneTick--;
-            }
-            else if (MasterTonePeriod){
-                MasterToneTick = MasterTonePeriod;
-                // Hoot/Speaker output
-                PIN_HOOT_TRIS  = OUTPUT;
-                PIN_HOOT_OUT  ^= 1;
-            }
-            else {
-                PIN_HOOT_OUT  = 0;
-            }
-        }
+        // MUSIC
+        #if defined(LIB_MUSIC)
+        Music_tick();
+        #endif
         
         // MASTER CLOCK
         if (MasterClockTick){
@@ -311,6 +161,31 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
             // MASTER CLOCK MS
             MasterClockMS++;
             
+            // MUSIC ms beat
+            #if defined(LIB_MUSIC)
+            Music_beat();
+            #endif
+
+            // KEYS ms tick
+            #if defined(LIB_KEYS)
+                Keys_tick();
+            #endif
+            
+            // LEDS ms tick
+            #if defined(LIB_LEDS)
+                Leds_tick();
+            #endif
+            
+            // PUNCHER ms tick
+            #if defined(LIB_PUNCHER)
+                Puncher_tick();
+            #endif
+                            
+            // PROGRAM ms tick
+            #if defined(LIB_PROGRAM)
+                Program_tick();
+            #endif
+
             // MASTER NOTIFY
             if (MasterNotifyCounter){
                 MasterNotifyCounter--;
@@ -328,37 +203,21 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
                     }
                 }
             }
-           
-            // MASTER TONE ms Counter
-            if (MasterToneCounter){
-                MasterToneCounter--;
-            }
-            
-            // MASTER BUTTONS
-            if (MasterButtonsTick){
-                MasterButtonsTick--;
-            }
-            
-            // MASTER LED STEPS
-            if (MasterLedStepTick){
-                MasterLedStepTick--;
-            }
-            
-            if (MasterProgramTick){
-                MasterProgramTick--;
-            }
-
-            // USB LED
-            APP_updateUsbLed();
-        }
-        
-        // MASTER LEDS
-        if (MasterLedCounter){
-            MasterLedCounter--;
         }
         
 		INTCONbits.TMR0IF = 0;
 	}
+    
+    #if defined(LIB_I2C)
+    if (I2C_InterruptFlag){
+        #if defined(DEVICE_CONSOLE)
+            I2C_Master_service();
+        #else
+            I2C_Slave_service();
+        #endif
+        I2C_InterruptFlag = 0; // Clear interrupt
+    }
+    #endif
     
     // USB
     if (USBInterruptFlag){
@@ -367,176 +226,62 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
 }
 
 void APP_main(){
-    
-    // MASTER TONE
-    if (MasterToneEnabled){
-        if (MasterToneEnabled == 2){
-            MasterToneCounter = 0;
-        }
-
-        if (!MasterToneCounter){
-            if (!MasterToneMode){
-                // Single tone mode
-                if (MasterToneRestart){
-                    MasterToneCounter = MasterToneTime;
-                }
-                else{
-                    MasterToneEnabled = 0;
-                }
-            }
-            else{
-                // Music mode
-                if (MasterToneEnabled == 2){
-                    MasterToneStep    = 0;
-                    MasterToneEnabled = 1;
-                }
-                else{
-                    MasterToneStep++;
-                }
-
-                // End of music
-                if (MasterToneStep >= MasterToneMusicLen){
-                    if (MasterToneRestart){
-                        MasterToneStep = 0;
-                    }
-                    else{
-                        MasterToneEnabled = 0;
-                    }
-                }
-                // Next tone
-                if (MasterToneEnabled){
-                    if (MasterToneMusicType){
-                        // MIDI BASED
-                        if (MasterToneMusic[MasterToneStep].note){
-                            MasterTonePeriod  = MasterToneMidiTable[MasterToneMusic[MasterToneStep].note + MasterTonePitch - 24];
-                        }
-                        else{
-                            MasterTonePeriod  = 0;
-                        }
-                    }
-                    else{
-                        // PERIOD BASED
-                        MasterTonePeriod  = MasterToneMusic[MasterToneStep].note * MasterTonePitch;
-                    }
-
-                    MasterToneCounter = MasterToneMusic[MasterToneStep].time * MasterToneTempo;
-
-                    sprintf(sReply, "#%02u n:%02u t:%02u", 
-                        MasterToneStep,
-                        MasterToneMusic[MasterToneStep].note,
-                        MasterToneMusic[MasterToneStep].time);
-                    
-                    printReply(3, "TONE", sReply);
-                    MasterToneTick    = 0;
-                    if (!MasterToneCounter){
-                        // Autostop
-                        MasterToneEnabled = 0;
-                        MasterTonePeriod  = 0;
-                    }
-                }
-            }
-        }
+    #if defined(LIB_MUSIC)
+    if (MasterMusic.enabled){
+        Music_service();
     }
+    #endif
     
-    // MASTER BUTTONS
-    if (!MasterButtonsTick){
-        APP_checkButtons();
-        MasterButtonsTick = MasterButtonsTime;
+    #if defined(LIB_PUNCHER)
+    if (MasterPuncher.enabled && !MasterPuncher.tick){
+        Puncher_service();
     }
+    #endif
+
     
-    // Notifications handling
-    if (posCommand  == 0 
-        && posOutput == 0 
-        && USBGetDeviceState()     == CONFIGURED_STATE
-        && USBIsDeviceSuspended()  == false
-        && mUSBUSARTIsTxTrfReady() == true
-    ){
-        APP_checkPins('A');
-        APP_checkPins('B');
-        APP_checkPins('C');
-        APP_checkPins('D');
-        APP_checkPins('E');
+    #if defined(LIB_KEYS)
+    if (MasterKeys.enabled){
+        Keys_service();
     }
+    #endif    
     
+    #if defined(LIB_LEDS)
+        Leds_service();
+    #endif
+
     if (MasterNotifyNow){
         clock2str(sStr1, MasterNotifyNow);
         printReply(3, "UPTIME", sStr1);
         MasterNotifyNow = 0;
     }
     
-    // MASTER LED STEPS
-    if (!MasterLedStepTick && MasterLedStepEnabled){
-        if (MasterLedStepEnabled == 2){
-            MasterLedStep        = 0;
-            MasterLedStepEnabled = 1;
-        }
-        else{
-            MasterLedStep++;
-            if (MasterLedStep >= MasterLedStepsLen){
-                if (MasterLedStepRestart){
-                    MasterLedStep = 0; 
-                }
-                else {
-                    MasterLedStepEnabled = 0;
-                    printReply(3, "LEDSTEP", txtOff);
-                }
-            }
-        }
-
-        if (MasterLedStepEnabled){
-            MasterLedStatus   = MasterLedSteps[MasterLedStep];
-            MasterLedStepTick = MasterLedStepTime;
-            int2binstr(sStr1, MasterLedStatus);               
-            sprintf(sReply, "%02d %s", MasterLedStep, sStr1);
-            printReply(3, "LEDSTEP", sReply);
-        }
-    }
-    
-    // MASTER LED
-    if (!MasterLedCounter){
-        APP_updateLeds();
-        MasterLedCounter = MasterLedTime;
-    }
-
-    if (MasterProgramEnabled && !posCommand){
-        if (MasterProgramEnabled == 2){
-            MasterProgramTick = 0;
-        }
-
-        if (!MasterProgramTick){
-            const unsigned char *pProgram = MasterPrograms[MasterProgramRun];
-            pProgram += MasterProgramStep;
-            
-            if (MasterProgramEnabled == 2){
-                MasterProgramStep    = 0;
-                MasterProgramEnabled = 1;
-            }
-            
-            if (!strlen(pProgram)){
-                MasterProgramEnabled = 0;
-                printReply(3, "RUN", "Done!");
-            }
-            else {
-                MasterProgramStep += strlen(pProgram) + 1;
-            }
-            
-            // Next tone
-            if (MasterProgramEnabled){
-                MasterProgramTick = MasterProgramTime;
-                strcpy(bufCommand, pProgram);
-                APP_executeCommand();
-
-                sprintf(sReply, "#%02u s:%02u T:%02u", 
-                    MasterProgramRun,
-                    MasterProgramStep,
-                    MasterProgramTick);
-
-                printReply(3, "RUN", sReply);
-            }
-        }
-    }
+    // Program
+    #if defined(LIB_PROGRAM)
+        Program_service();
+    #endif
                 
-    // INPUT handling
+    // Monitor
+    #if defined(LIB_MONITOR)
+        Monitor_service();
+    #endif
+    
+    // UART
+    #if defined(LIB_UART)
+        UART_service();
+    #endif
+
+    // I2C
+    #if defined(LIB_I2C) && defined(DEVICE_CONSOLE)
+        //I2C_Master_service();
+    #endif
+    
+    // USB I/O handling
+    APP_USB_input();
+    
+    APP_USB_output();
+}
+
+void APP_USB_input(void){
     if(USBUSARTIsTxTrfReady() == true){
         uint8_t i;
         uint8_t n;
@@ -559,39 +304,11 @@ void APP_main(){
                 }
             }
         }
-        while(nBytes > 0);
+        while(nBytes);
     }
-
-    if (PIR1bits.TXIF){
-        TXREG = MasterSerialOut;
-    }
-    
-    // OUTPUT handling
-    APP_outputUsb();
-    /*
-    if(posOutput > 0){
-        if(USBUSARTIsTxTrfReady()){
-            if(posOutput > sizeOutUsb){
-                strncpy(bufTmp, bufOutput, sizeOutUsb);
-                bufTmp[sizeOutUsb] = '#';
-                putUSBUSART(bufTmp, sizeOutUsb + 1);
-                strcpy(bufOutput, &bufOutput[sizeOutUsb]);
-                posOutput = posOutput - sizeOutUsb;
-                bufOutput[posOutput] = 0x00;
-                //memmove();
-            }
-            else {
-                putUSBUSART(bufOutput, (unsigned char) posOutput);
-                posOutput = 0;
-            }
-        }
-    }
-
-    CDCTxService();
-     * */
 }
 
-void APP_outputUsb(void){
+void APP_USB_output(void){
     unsigned char len;
     if(posOutput > 0){
         if(USBUSARTIsTxTrfReady()){
@@ -612,6 +329,8 @@ void APP_outputUsb(void){
 
     CDCTxService();
 }
+
+
 
 void APP_executeCommand(void){
     unsigned char n;
@@ -648,59 +367,87 @@ void APP_executeCommand(void){
         APP_CMD_uptime(ptrArgs);
 	}
     // DEBUG
+    /*
     else if (strequal(ptrCommand, "debug")){
-        APP_CMD_debug(ptrArgs);
-    }
-    // TONE
-    else if (strequal(ptrCommand, "tone")){
-        APP_CMD_tone(ptrArgs);
-    }
-    // MONITOR
-    else if (strequal(ptrCommand, "monitor")){
-        APP_CMD_monitor(ptrArgs);
+       //APP_CMD_debug(ptrArgs);
     }
     // READ
     else if (strequal(ptrCommand, "read") || strequal(ptrCommand, "r")){
-        APP_CMD_read(ptrArgs);
+        //APP_CMD_read(ptrArgs);
     }
     // WRITE
     else if (strequal(ptrCommand, "write") || strequal(ptrCommand, "w")){
-        APP_CMD_write(ptrArgs);
-    }
-    // LED
-    else if (strequal(ptrCommand, "led")){
-        APP_CMD_led(ptrArgs);
-    }
-    // KEYS
-    else if (strequal(ptrCommand, "keys")){
-        APP_CMD_keys(ptrArgs);
-    }
-    // RUN
-    else if (strequal(ptrCommand, "run")){
-        APP_CMD_run(ptrArgs);
+        //APP_CMD_write(ptrArgs);
     }
     // VAR
     else if (strequal(ptrCommand, "var")){
-        APP_CMD_var(ptrArgs);
+        //APP_CMD_var(ptrArgs);
     }
+     * */
     // MEM
+    /*
     else if (strequal(ptrCommand, "mem")){
         APP_CMD_mem(ptrArgs);
     }
+     */
     // DUMP
     /*
     else if (strequal(ptrCommand, "dump")){
         APP_CMD_dump(ptrArgs);
     }
      * */
-    // WAIT
+    
+    // UART
     else if (strequal(ptrCommand, "uart")){
-        MasterSerialOut = (unsigned char) atoi(ptrArgs);
+//        MasterSerialOut = (unsigned char) atoi(ptrArgs);
     }
-    // WAIT
-    else if (strequal(ptrCommand, "wait")){
-        MasterProgramTick = atol(ptrArgs);
+    // PROGRAM
+    #if defined(LIB_PROGRAM)
+    // DELAY
+    else if (strequal(ptrCommand, "delay") || strequal(ptrCommand, "d")){
+        MasterProgram.Tick = atol(ptrArgs);
     }
+    // RUN
+    else if (strequal(ptrCommand, "run")){
+        Program_cmd(ptrArgs);
+    }
+    #endif
+    // I2C
+    #if defined(LIB_I2C)
+    else if (strequal(ptrCommand, "i2c")){
+        I2C_cmd(ptrArgs);
+    }
+    #endif
+    // MONITOR
+    #if defined(LIB_MONITOR)
+    else if (strequal(ptrCommand, "monitor")){
+        Monitor_cmd(ptrArgs);
+    }
+    #endif
+    // LED
+    #if defined(LIB_LEDS)
+    else if (strequal(ptrCommand, "led") || strequal(ptrCommand, "l")){
+        Leds_cmd(ptrArgs);
+    }
+    #endif
+    // KEYS
+    #if defined(LIB_KEYS)
+    else if (strequal(ptrCommand, "keys")){
+        Keys_cmd(ptrArgs);
+    }
+    #endif
+    // MUSIC
+    #if defined(LIB_MUSIC)
+    else if (strequal(ptrCommand, "music") || strequal(ptrCommand, "tone") || strequal(ptrCommand, "t")){
+        Music_cmd(ptrArgs);
+    }
+    #endif
+    // PUNCH
+    #if defined(LIB_PUNCHER)
+    else if (strequal(ptrCommand, "punch")){
+        Puncher_cmd(ptrArgs);
+    }
+    #endif
     // VERSION
     else if (strequal(ptrCommand, "version")){
         printReply(1, "VERSION", txtVersion);
@@ -710,245 +457,6 @@ void APP_executeCommand(void){
     }
     posCommand = 0;
     bufCommand[0] = 0x00;
-}
-
-
-/* APP INTERFACE FUNCTIONS */
-
-void APP_updateLeds(void){
-    // Note: We start with 8 just because that led is the only one which does not exist
-    static unsigned char nCurrentLed = 15;
-                                      //FEDCBA9876543210 
-    static unsigned int  iCurrentBit = 0b0000000100000000;
-     
-    unsigned char nInitialLed;
-    unsigned char nTrisB;
-    unsigned char nTrisA;
-     
-    if (!MasterLedStatus){
-        // No leds on, then switch all pins to 3rd state
-        TRISA |= 0b00001111;
-        TRISB |= 0b00111100;
-        return;
-    }
-    // Find the next led to be on
-    nInitialLed = nCurrentLed;
-    do {
-        if (nCurrentLed == 0){
-            nCurrentLed = 15;
-            iCurrentBit = 0b1000000000000000;
-        }
-        else{
-            nCurrentLed--;
-            iCurrentBit = iCurrentBit >> 1;
-        }
-    } while (!(MasterLedStatus & iCurrentBit));
-    
-    if (nInitialLed != nCurrentLed){
-        // Not the full loop, it is then another led
-        // Make sure we do not disturb other A or B pins
-        TRISA = (TRISA & 0b11110000) | (MasterLedMap[nCurrentLed]        & 0b00001111);
-        TRISB = (TRISB & 0b11000011) | ((MasterLedMap[nCurrentLed] >> 2 )& 0b00111100);
-
-        LATA &= 0b11110000; // We always force a 0 on A (Cathode)
-        LATB |= 0b00111100; // We always force a 1 on B (Anode)
-    }
-
-    //if (MasterDebug > 2) printf("\r\n!OK LED %d on\r\n", nCurrentLed);
-
-    // If the led is the same one, we do not do anything as everything should already be set
-}
-
-void APP_checkButtons(void){
-    unsigned char nBtn;
-    unsigned char nOnes = 0;
-    unsigned char n = 0;
-    bool bChanged = 0;
-    
-    PIN_KEYS_OUT_0 = 0;
-    PIN_KEYS_OUT_1 = 0;
-    PIN_KEYS_OUT_2 = 0;
-    PIN_KEYS_OUT_3 = 0;
-    PIN_KEYS_OUT_4 = 0;
-    
-    if  (MasterButtonsBit){
-        MasterButtonsBit--;
-    }
-    else {
-        // We only use 7 bits as history
-        MasterButtonsBit = MasterButtonsHistoryBits - 1;
-    }
-    
-    for (nBtn = 0; nBtn < MasterButtonsMapLen; nBtn++) {
-        setbit(*MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit);
-        
-        n = readbit(*MasterButtonsMap[nBtn].in_port, MasterButtonsMap[nBtn].in_bit);
-        if (n){
-            setbit(MasterButtons[nBtn].history, MasterButtonsBit);
-        }
-        else{
-            clearbit(MasterButtons[nBtn].history, MasterButtonsBit);
-        };
-        
-        clearbit(*MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit);
-
-        // byte2binstr(sStr5, MasterButtons[nBtn].history);
-        // printf("!BTN%u %u %u %s\r\n", nBtn, MasterButtonsBit, n, sStr5);
-        
-        // Count bits
-        nOnes = 0;
-        for (n = 0b01000000; n; n = n >> 1){
-            if (MasterButtons[nBtn].history & n){
-                nOnes++;
-            }
-        }
-        // Determine new status
-        n = 0; // Should flip?
-        if (MasterButtons[nBtn].status){
-            if (nOnes < 3){
-                n = 1;
-            }
-        }
-        else{
-            if (nOnes > 4){
-                n = 1;
-            }
-        }
-        // Flip status and notify
-        if (n){
-            MasterButtons[nBtn].status ^= 1;
-            sReply[0] = nBtn + 48;
-            sReply[1] = '=';
-            sReply[2] = MasterButtons[nBtn].status + 48;
-            sReply[3] = 0x00;
-            printReply(3, "BUTTON", sReply);
-            
-            bChanged = 1;
-        }
-    }
-    if (bChanged){
-        APP_getKeys();
-        APP_getStatusReply();
-        printReply(3, "STATUS", sReply);
-
-        if (MasterButtonsRunEnabled && !MasterProgramEnabled){
-            unsigned char s[5];
-            sprintf(s, "%u", MasterKeysAddress & 0x07);
-            APP_CMD_run(s);
-        }
-    }
-}
-
-void APP_getKeys(void){
-    volatile unsigned char nLsb = 0;
-
-    // Keyboard Inputs
-    PIN_KEYS_IN_TRIS = 0xff;
-    
-    // Keyboard Outputs
-    PIN_KEYS_OUT_0 = 0;
-    PIN_KEYS_OUT_1 = 0;
-    PIN_KEYS_OUT_2 = 0;
-    PIN_KEYS_OUT_3 = 0;
-    PIN_KEYS_OUT_4 = 0;
-    PIN_KEYS_OUT_0_TRIS = OUTPUT;
-    PIN_KEYS_OUT_1_TRIS = OUTPUT;
-    PIN_KEYS_OUT_2_TRIS = OUTPUT;
-    PIN_KEYS_OUT_3_TRIS = OUTPUT;
-    PIN_KEYS_OUT_4_TRIS = OUTPUT;
-    
-    // Get the shared LSB from C0
-    PIN_KEYS_OUT_3 = 1;
-    nLsb = PIN_KEYS_IN;
-    PIN_KEYS_OUT_3 = 0;
-    
-    PIN_KEYS_OUT_0 = 1;
-    MasterKeysInput    = ((unsigned int) PIN_KEYS_IN << 2) | ((nLsb & 0b00001100) >> 2);
-    PIN_KEYS_OUT_0 = 0;
-
-    PIN_KEYS_OUT_1 = 1;
-    MasterKeysAddress  = ((unsigned int) PIN_KEYS_IN << 2) | ((nLsb & 0b00110000) >> 4);
-    PIN_KEYS_OUT_1 = 0;
-
-    PIN_KEYS_OUT_2 = 1;
-    MasterKeysFunction = ((unsigned int) PIN_KEYS_IN << 2) | ((nLsb & 0b11000000) >> 6);
-    PIN_KEYS_OUT_2 = 0;
-    
-    PIN_KEYS_OUT_4 = 1;
-    MasterKeysSwitches = (unsigned int) (((unsigned int) PIN_KEYS_IN << 8) | (unsigned int) nLsb);
-    PIN_KEYS_OUT_4 = 0;
-
-}
-
-void APP_checkPins(unsigned char cPortName){
-    unsigned char *pMonitor;
-    volatile unsigned char *pPort;
-    volatile unsigned char *pTris;
-    unsigned char *pStatusTris;
-    unsigned char *pStatusPort;
-    
-    switch (cPortName){
-        case 'a': 
-        case 'A': 
-            pPort       = &PORTA; 
-            pTris       = &TRISA; 
-            pMonitor    = &nStatus_MonitorA; 
-            pStatusTris = &nStatus_TrisA; 
-            pStatusPort = &nStatus_PortA; 
-            break;
-        case 'b': 
-        case 'B': 
-            pMonitor    = &nStatus_MonitorB;
-            pPort       = &PORTB;
-            pTris       = &TRISB;
-            pStatusTris = &nStatus_TrisB;
-            pStatusPort = &nStatus_PortB;
-            break;
-        case 'c': 
-        case 'C':
-            pMonitor    = &nStatus_MonitorC;
-            pPort       = &PORTC;
-            pTris       = &TRISC;
-            pStatusTris = &nStatus_TrisC;
-            pStatusPort = &nStatus_PortC;
-            break;
-        case 'd': 
-        case 'D':
-            pMonitor    = &nStatus_MonitorD;
-            pPort       = &PORTD;
-            pTris       = &TRISD;
-            pStatusTris = &nStatus_TrisD;
-            pStatusPort = &nStatus_PortD;
-            break;
-        case 'e': 
-        case 'E':
-            pMonitor    = &nStatus_MonitorE;
-            pPort       = &PORTE;
-            pTris       = &TRISE;
-            pStatusTris = &nStatus_TrisE;
-            pStatusPort = &nStatus_PortE;
-            break;
-        default: return;
-    }
-    
-    if (*pMonitor == 0){
-        return;
-    }
-    
-    if (*pPort != *pStatusPort || *pTris != *pStatusTris){
-        clock2str(sStr1, 0);
-        byte2binstr(sStr2, *pStatusTris);
-        byte2binstr(sStr3, *pTris);
-        byte2binstr(sStr4, *pStatusPort);
-        byte2binstr(sStr5, *pPort);
-        
-        sprintf(sReply, "%c %s TRIS %s > %s PORT %s > %s", cPortName, sStr1, sStr2, sStr3, sStr4, sStr5);
-
-        printReply(3, "MONITOR", sReply);
-        
-        *pStatusPort = *pPort;
-        *pStatusTris = *pTris;
-    }
 }
 
 /* USB stuff within APP */
@@ -963,65 +471,3 @@ void APP_usbConfigured(void){
     printReply(3, "VERSION", txtVersion);
 }
 
-void APP_updateUsbLed(void){
-    static uint16_t ledCount = 0;
-
-    if(USBIsDeviceSuspended() == true){
-        clearbit(MasterLedStatus, LED_USB);
-        //LED_Off(LED_USB_DEVICE_STATE);
-        return;
-    }
-
-    switch(USBGetDeviceState()){
-        case CONFIGURED_STATE:
-            /* We are configured.  Blink fast. On for 75ms, off for 75ms, then reset/repeat. */
-            if(ledCount == 1){
-                setbit(MasterLedStatus, LED_USB);
-                //LED_On(LED_USB_DEVICE_STATE);
-            }
-            else if(ledCount == 75){
-                clearbit(MasterLedStatus, LED_USB);
-                //LED_Off(LED_USB_DEVICE_STATE);
-            }
-            else if(ledCount > 150){
-                ledCount = 0;
-            }
-            break;
-        default:
-            /* We aren't configured yet, but we aren't suspended so let's blink with
-             * a slow pulse. On for 50ms, then off for 950ms, then reset/repeat. */
-            if(ledCount == 1){
-                setbit(MasterLedStatus, LED_USB);
-                //LED_On(LED_USB_DEVICE_STATE);
-            }
-            else if(ledCount == 50){
-                clearbit(MasterLedStatus, LED_USB);
-                //LED_Off(LED_USB_DEVICE_STATE);
-            }
-            else if(ledCount > 950){
-                ledCount = 0;
-            }
-            break;
-    }
-
-    /* Increment the millisecond counter. */
-    ledCount++;
-}
-
-void APP_getStatusReply(void){
-    unsigned char n = 0;
-    n |= MasterButtons[2].status;
-    n = n << 1;
-    n |= MasterButtons[1].status;
-    n = n << 1;
-    n |= MasterButtons[0].status;
-    
-    sprintf(sReply, "F: %04x / A: %04x / I: %04x / S: %04x / B: %01x / L: %04x",
-        MasterKeysFunction, 
-        MasterKeysAddress,
-        MasterKeysInput,
-        MasterKeysSwitches,
-        n,
-        MasterLedStatus
-    );
-}

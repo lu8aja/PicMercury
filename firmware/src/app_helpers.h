@@ -5,8 +5,6 @@
  * Created on February 21, 2017, 11:25 PM
  */
 
-#include "app_main.h"
-
 /** MACROS **/
 /* Bit Operation macros */
 #define setbit(b,n)   ( b |=   (1 << n))        /* Set bit number n in byte b   */
@@ -34,3 +32,9 @@ void          byte2binstr(char *sStr, unsigned char iNum);
 void          int2binstr(char *sStr, unsigned int iNum);
 void          any2binstr(char *sStr, unsigned long iNum, unsigned char nLen);
 void          clock2str(char *sStr, unsigned long ms);
+unsigned char hexstr2byte(unsigned char *sStr);
+unsigned char hex2byte(unsigned char c);
+
+// EEPROM
+unsigned char read_eeprom(unsigned char addr);
+void          write_eeprom(unsigned char addr, unsigned char val);

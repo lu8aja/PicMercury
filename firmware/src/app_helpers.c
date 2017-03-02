@@ -10,22 +10,16 @@
 #include "usb.h"
 #include "usb_device_cdc.h"
 
+#include "app_globals.h"
 #include "app_main.h"
 #include "app_io.h"
 
-/** MACROS **/
-/* Bit Operation macros */
-#define setbit(b,n)   ( b |=   (1 << n))        /* Set bit number n in byte b   */
-#define clearbit(b,n) ( b &= (~(1 << n)))       /* Clear bit number n in byte b */
-#define readbit(b,n)  ((b  &   (1 << n)) >> n)  /* Read bit number n in byte b  */
-#define flipbit(b,n)  ( b ^=   (1 << n))        /* Flip bit number n in byte b  */
-
-#define reciprocal(a, fp)  ( (( 1 << fp) + a - 1) / a )  /* Reciprocal 1/x without using floats */
-
-#define bit_is_set(b,n)   (b   & (1 << n))     /* Test if bit number n in byte b is set   */
-#define bit_is_clear(b,n) (!(b & (1 << n)))    /* Test if bit number n in byte b is clear */
-
-#define strequal(a, b) (strcmp(a, b) == 0)
+#if defined(LIB_LEDS) // Used for overflow beep only
+    #include "service_leds.h"
+#endif
+#if defined(LIB_MUSIC) // Used for overflow light only
+    #include "service_music.h"
+#endif
 
 
 // Helper functions
@@ -42,6 +36,12 @@ void          byte2binstr(char *sStr, unsigned char iNum);
 void          int2binstr(char *sStr, unsigned int iNum);
 void          clock2str(char *sStr, unsigned long ms);
 void          any2binstr(char *sStr, unsigned long iNum, unsigned char nLen);
+unsigned char hexstr2byte(unsigned char *sStr);
+unsigned char hex2byte(unsigned char c);
+
+// EEPROM
+unsigned char read_eeprom(unsigned char addr);
+void          write_eeprom(unsigned char addr, unsigned char val);
 
 
 
@@ -71,15 +71,17 @@ void printReply(const unsigned char nType, const unsigned char *pCmd, const unsi
 // Function used by stdio (printf, etc)
 void putch(const unsigned char byte){
     if (posOutput >= sizeOutput){
-        APP_outputUsb();
+        APP_USB_output();
         if (posOutput >= sizeOutput){
-            MasterToneMode      = 0;     // 0 = Single tone / 1 = Music
-            MasterToneRestart   = 0;     // 0 = Disable when Time is reached / 1 = Restart either music from step 0 or steady tone
-            MasterTonePeriod    = 6;     // Current tone semi-period
-            MasterToneEnabled   = 1;     // 0 = Off / 1 = On / 2 = Start Music
-            MasterToneCounter   = 4000;  // ms
+            
+            #if defined(LIB_MUSIC)
+            Music_setSingleTone(6, 16);
+            #endif
 
-            setbit(MasterLedStatus, LED_ALARM);
+            #if defined(LIB_LEDS)
+                setbit(MasterLedStatus, LED_ALARM);
+            #endif
+            
             //MasterConsoleStatus.bufferOverrun = 1;
             strcpy(bufOutput, "\r\n!ERROR OVERFLOW ");
             posOutput = 19;
@@ -222,7 +224,7 @@ void int2binstr(char *sStr, unsigned int iNum){
     while (m);
 } //end int2binstr
 
-void          any2binstr(char *sStr, unsigned long iNum, unsigned char nLen){
+void any2binstr(char *sStr, unsigned long iNum, unsigned char nLen){
     unsigned long n = 1;
     if (nLen > 32){
         nLen = 32;
@@ -270,4 +272,46 @@ void clock2str(char *sStr, unsigned long ms){
 	len--;                      i = ms  % 10; sStr[len] = i   | 0x30;
 	len--; ms  -= i; ms /= 10;                sStr[len] = ms  | 0x30;
 	       // long 4 byte unsigned, expressing ms, will wrap at arround day 49, so no more than 2 digits for the day are needed
+}
+
+unsigned char hexstr2byte(unsigned char *sStr){
+    return (hex2byte(*sStr) << 4) & hex2byte(*(sStr + 1));
+}
+
+unsigned char hex2byte(unsigned char c){
+    if (c >= 'a' && c <= 'f'){
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F'){
+        return c - 'A' + 10;
+    }
+    if (c >= '0' && c <= '9'){
+        return c - '0';
+    }
+    return 0;
+}
+
+unsigned char read_eeprom(unsigned char addr){
+    EEADR = addr;
+    EECON1bits.CFGS = 0;
+    EECON1bits.EEPGD = 0;
+    EECON1bits.RD = 1;
+    return EEDATA;
+}
+
+void write_eeprom(unsigned char addr, unsigned char val){
+    EEADR  = addr;
+    EEDATA = val;
+    
+    EECON1bits.EEPGD = 0;
+    EECON1bits.CFGS  = 0;
+    EECON1bits.WREN  = 1;
+    INTCONbits.GIE   = 0;
+    
+    EECON2 = 0x55; // 55AAWrite sequence, it MUST be like this by desgin
+    EECON2 = 0xAA;
+    EECON1bits.WR = 1;
+    //while(EECON1bits.WR);
+    INTCONbits.GIE = 1;
+    EECON1bits.WREN = 0;
 }

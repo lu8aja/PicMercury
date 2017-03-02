@@ -12,11 +12,20 @@
 #include "usb.h"
 #include "usb_device_cdc.h"
 
+#include "data_eeprom.h"
+
+#if defined(LIB_KEYS)
+    #include "service_keys.h"
+#endif
+#if defined(LIB_MUSIC)
+    #include "service_music.h"
+#endif
+
+#include "app_globals.h"
 #include "app_main.h"
 #include "app_io.h"
 #include "app_helpers.h"
-#include "app_music.h"
-#include "app_midi.h"
+
 #include "app_programs.h"
 
 #include "system_config.h"
@@ -25,12 +34,10 @@
 void APP_CMD_ping(unsigned char *pArgs);
 void APP_CMD_uptime(unsigned char *pArgs);
 void APP_CMD_debug(unsigned char *pArgs);
-void APP_CMD_tone(unsigned char *pArgs);
-void APP_CMD_led(unsigned char *pArgs);
+void APP_CMD_music(unsigned char *pArgs);
 void APP_CMD_monitor(unsigned char *pArgs);
 void APP_CMD_read(unsigned char *pArgs);
 void APP_CMD_write(unsigned char *pArgs);
-void APP_CMD_keys(unsigned char *pArgs);
 void APP_CMD_run(unsigned char *pArgs);
 void APP_CMD_var(unsigned char *pArgs);
 void APP_CMD_mem(unsigned char *pArgs);
@@ -69,261 +76,6 @@ void APP_CMD_debug(unsigned char *pArgs){
     printReply(1, "DEBUG", sReply);
 }
 
-void APP_CMD_tone(unsigned char *pArgs){
-    bool bOK = true;
-    unsigned char *pArg1 = NULL;
-    unsigned char *pArg2 = NULL;
-    
-    unsigned int nNote   = 0;
-    unsigned int iFreq   = 0;
-    unsigned int iPeriod = 0;
-    unsigned int iArg2   = 0;
-    
-    bool bShowStatus = false;
-
-    sReply[0] = 0x00;
-    
-    str2lower(pArgs);
-    
-    pArg1 = strtok(pArgs, txtWhitespace);
-    pArg2 = strtok(NULL,  txtWhitespace);
-    
-    if (pArg2){
-        iArg2 = atoi(pArg2);
-    }
-
-    if (pArg1 == NULL){
-        bShowStatus = true;
-    }
-    else if (strequal(pArg1, "on")){
-        MasterToneEnabled = MasterToneMode ? 2 : 1;
-        strcpy(sReply, txtOn);
-    }
-    else if (strequal(pArg1, "off")){
-        MasterToneEnabled = 0;
-        strcpy(sReply, txtOff);
-    }
-    else if (strequal(pArg1, "restart")){
-        if (pArg2){
-            MasterToneRestart = strequal(pArg2, "on") ? 1 : 0;
-        }
-        sprintf(sReply, "%s %s", pArg1, MasterToneRestart ? txtOn : txtOff);
-    }
-    else if (strequal(pArg1, "mode")){
-        if (pArg2){
-            MasterToneMode = (strequal(pArg2, "on") || strequal(pArg2, "music")) ? 1 : 0;
-        }
-        sprintf(sReply, "%s %s", pArg1, MasterToneMode ? "Music" : "Single");
-    }
-    else if (strequal(pArg1, "time")){
-        if (pArg2){
-            MasterToneTime = iArg2;
-        }
-        sprintf(sReply, "%s %u", pArg1, MasterToneTime);
-    }
-    else if (strequal(pArg1, "tempo")){
-        if (pArg2){
-            MasterToneTempo = iArg2;
-        }
-        sprintf(sReply, "%s %u", pArg1, MasterToneTempo);
-    }
-    else if (strequal(pArg1, "pitch")){
-        if (pArg2){
-            MasterTonePitch = (signed char) iArg2;
-        }
-        sprintf(sReply, "%s %u", pArg1, MasterTonePitch);
-    }
-   else if (strequal(pArg1, "period")){
-        if (pArg2){
-            MasterTonePeriod = (unsigned char) iArg2;
-        }
-        sprintf(sReply, "%s %u", pArg1, MasterTonePeriod);
-    }
-    else if (strspn(pArg1, txtNum) == strlen(pArg1)){
-        iFreq = atoi(pArg1);
-    }
-    else if (strequal(pArg1, "freq")){
-        if (pArg2){
-            iFreq = iArg2;
-        }
-        else{
-            bOK = false;
-            strcat(sReply, txtErrorMissingArgument);    
-        }
-    }
-    else if (strequal(pArg1, "midi")){
-        // Get frequency from MIDI note number
-        if (pArg2){
-            nNote = iArg2;
-            if (nNote < 24 || nNote > 95){
-                bOK = false;
-                strcat(sReply, txtErrorInvalidArgument);    
-            }
-            else{
-                iPeriod = MasterToneMidiTable[nNote - 24];
-            }
-        }
-        else{
-            bOK = false;
-            strcat(sReply, txtErrorMissingArgument);    
-        }
-    }
-    else{
-        bOK = false;
-        sprintf(sReply, "%s. Now: %s", txtErrorUnknownArgument, MasterToneEnabled > 0 ? txtOn : txtOff);
-    }
-
-    if (bOK && !iPeriod && iFreq){
-        // Calculate period from frequency
-        if (iFreq < 25 || iFreq > 4000){
-            iPeriod = 0;
-        }
-        else {
-            iPeriod = (unsigned int) MasterClockTickCount * 500 / iFreq;
-        }
-        if (iPeriod < 1 || iPeriod > 255){
-            bOK = false;
-            strcat(sReply, txtErrorInvalidArgument);    
-        }
-    }
-    
-    if (bOK && iPeriod){
-        // Assign period
-        MasterTonePeriod  = (unsigned char) iPeriod;
-        MasterToneTime    = 10000;
-        MasterToneRestart = 1;
-        MasterToneMode    = 0;
-        MasterToneEnabled = 1;
-        bShowStatus       = true;
-    }
-
-    if (bShowStatus){
-        if (MasterToneMode){
-            sprintf(sStr5, " - Music %s #%u n: %d t: %d", 
-                MasterToneEnabled ? txtOn : txtOff,
-                MasterToneStep,
-                MasterToneMusic[MasterToneStep].note,
-                MasterToneMusic[MasterToneStep].time
-            );
-        }
-        else{
-            sprintf(sStr5, " - Single %s T: %u t: %u",
-                MasterToneEnabled ? txtOn : txtOff,
-                MasterTonePeriod,
-                MasterToneTime
-            );
-        }
-    }
-    strcat(sReply, sStr5);
-    printReply(bOK, "TONE", sReply);
-}
-
-void APP_CMD_led(unsigned char *pArgs){
-    bool bOK = true;
-    unsigned char *pArg1 = NULL;
-    unsigned char *pArg2 = NULL;
-
-    unsigned char nLed    = 0;
-    unsigned int  iBit    = 0;
-    
-    sReply[0] = 0x00;
-    
-    str2lower(pArgs);
-    
-    pArg1 = strtok(pArgs, txtWhitespace);
-    pArg2 = strtok(NULL,  txtWhitespace);
-
-    if (strlen(pArg1) == 1 && !pArg2){
-        nLed = (unsigned char) strtol(pArg1, NULL, 16);
-        sprintf(sReply, "%d %s", nLed, bit_is_set(MasterLedStatus, nLed) ? txtOn : txtOff);
-    }
-    else if(strlen(pArg1) == 1) {
-        nLed = (unsigned char) strtol(pArg1, NULL, 16);
-        if (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0){
-            setbit(MasterLedStatus, nLed);
-            iBit = 1;
-        }
-        else{
-            clearbit(MasterLedStatus, nLed);
-            iBit = 0;
-        }
-        sprintf(sReply, "%d %s", nLed, iBit ? txtOn : txtOff);
-    }
-    else if (strlen(pArg1) == 0){
-        // Do nothing, just print info
-    }
-    else if (strcmp(pArg1, "steps") == 0){
-        MasterLedStepTick    = 0;
-        MasterLedStepEnabled = (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0) ? 2 : 0;
-        sprintf(sReply, "Steps: %s", MasterLedStepEnabled ? txtOn : txtOff);
-    }
-    else{
-        bOK = false;
-        strcpy(sReply, txtErrorUnknownArgument);
-    }
-    
-    strcat(sReply, " Status: ");
-    int2binstr(sStr1, MasterLedStatus);
-    strcat(sReply, sStr1);
-    
-    printReply(bOK, "LED", sReply);
-}
-
-void APP_CMD_monitor(unsigned char *pArgs){
-    bool bOK = true;
-    unsigned char *pArg1 = NULL;
-    unsigned char *pArg2 = NULL;
-    unsigned char *pMonitor = NULL;
-    
-    sReply[0] = 0x00;
-    
-    str2lower(pArgs);
-    
-    pArg1 = strtok(pArgs, txtWhitespace);
-    pArg2 = strtok(NULL,  txtWhitespace);
-
-    str2upper(pArg1);
-    if (strlen(pArg1) == 1){
-        switch (pArg1[0]){
-            case 'A': pMonitor = &nStatus_MonitorA; break;
-            case 'B': pMonitor = &nStatus_MonitorB; break;
-            case 'C': pMonitor = &nStatus_MonitorC; break;
-            case 'D': pMonitor = &nStatus_MonitorD; break;
-            case 'E': pMonitor = &nStatus_MonitorE; break;
-        }
-    }
-
-    if (!pArg1){
-        strcat(sReply, "A ");
-        strcat(sReply, nStatus_MonitorA > 0 ? txtOn : txtOff);
-        strcat(sReply, " / B ");
-        strcat(sReply, nStatus_MonitorB > 0 ? txtOn : txtOff);
-        strcat(sReply, " / C ");
-        strcat(sReply, nStatus_MonitorC > 0 ? txtOn : txtOff);
-        strcat(sReply, " / D ");
-        strcat(sReply, nStatus_MonitorD > 0 ? txtOn : txtOff);
-        strcat(sReply, " / E ");
-        strcat(sReply, nStatus_MonitorE > 0 ? txtOn : txtOff);
-    }
-    else {
-        if (!pMonitor){
-            bOK = false;
-            strcpy(sReply, txtErrorUnknownArgument);
-        }
-        else if (!pArg2){
-            *pMonitor ^= 1;
-            strcpy(sReply, pArg1);
-            strcat(sReply, *pMonitor ? " On" : " Off");
-        }
-        else {
-            *pMonitor = strcmp(pArg2, "on") == 0 ? 1 : 0;
-            strcpy(sReply, pArg1);
-            strcat(sReply, *pMonitor ? " On" : " Off");
-        }
-    }
-
-    printReply(bOK, "MONITOR", sReply);
-}
 
 void APP_CMD_read(unsigned char *pArgs){
     bool bOK = true;
@@ -473,88 +225,19 @@ void APP_CMD_write(unsigned char *pArgs){
     printReply(bOK, "WRITE", sReply);
 }
 
-void APP_CMD_keys(unsigned char *pArgs){
+
+void APP_CMD_var(unsigned char *pArgs){}
+void APP_CMD_var_dummy(unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
-    unsigned char n = 0;
-
-    sReply[0] = 0x00;
-
-    str2upper(pArgs);
+    unsigned char *pArg3 = NULL;
     
-    pArg1 = strtok(pArgs, txtWhitespace);
-    pArg2 = strtok(NULL,  txtWhitespace);
+    volatile unsigned char *pChar = NULL;
+    volatile unsigned int  *pInt  = NULL;
+    volatile unsigned long *pLong = NULL;
 
-    APP_getKeys();
-    
-    /*
-    int2binstr(sStr1, MasterKeysFunction);
-    int2binstr(sStr2, MasterKeysAddress);
-    int2binstr(sStr3, MasterKeysInput);
-    int2binstr(sStr4, MasterKeysSwitches);
-    
-    sStr5[0] = MasterButtons[0].status + 48;
-    sStr5[1] = MasterButtons[1].status + 48;
-    sStr5[2] = MasterButtons[2].status + 48;
-    sStr5[3] = 0;
-
-    sprintf(sReply, "FUNC: %s ADDR: %s INPUT: %s SWITCHES: %s BTN: %s",
-        sStr1, sStr2, sStr3, sStr4, sStr5
-    );
-     */
-    APP_getStatusReply();    
-
-    printReply(bOK, "KEYS", sReply);
-}
-
-void APP_CMD_run(unsigned char *pArgs){
-    bool bOK = true;
-    unsigned char *pArg1 = NULL;
-    unsigned char *pArg2 = NULL;
-    unsigned char n = 0;
-    unsigned char s = 0;
-
-    sReply[0] = 0x00;
-
-    str2upper(pArgs);
-    
-    pArg1 = strtok(pArgs, txtWhitespace);
-    pArg2 = strtok(NULL,  txtWhitespace);
-
-    if (!pArg1){
-        bOK = false;
-        strcat(sReply, txtErrorMissingArgument);
-    }
-    else {
-        n = atoi(pArg1);
-        if (n >= MasterProgramsLen){
-            bOK = false;
-            strcat(sReply, txtErrorInvalidArgument);
-        }
-        else{
-            if (bOK){
-                MasterProgramTick    = 0;
-                MasterProgramStep    = 0;
-                MasterProgramRun     = n;
-                MasterProgramEnabled = 2;
-            }
-        }
-    }
-
-    printReply(bOK, "RUN", sReply);
-}
-
-void APP_CMD_var(unsigned char *pArgs){
-    bool bOK = true;
-    unsigned char *pArg1 = NULL;
-    unsigned char *pArg2 = NULL;
-    
-    unsigned char *pChar = NULL;
-    unsigned int  *pInt  = NULL;
-    unsigned long *pLong = NULL;
-
-    unsigned int num = 0;
+    unsigned int  num = 0;
     unsigned long val = 0;
     unsigned char var = 0;
 
@@ -562,6 +245,7 @@ void APP_CMD_var(unsigned char *pArgs){
 
     pArg1 = strtok(pArgs, txtWhitespace);
     pArg2 = strtok(NULL,  txtWhitespace);
+    pArg3 = strtok(NULL,  txtWhitespace);
 
     if (!pArg1){
         bOK = false;
@@ -588,81 +272,94 @@ void APP_CMD_var(unsigned char *pArgs){
             case 12: 
                 pLong  = &MasterNotifyNow; break;
 
+        #if defined(LIB_LEDS)
                 /*** MASTER LEDS ***/
                 // Configs
             case 20: 
-                var    = MasterLedTime; break;
+                pChar  = &MasterLeds.Time; break;
             case 21: 
-                pChar  = &MasterLedStepEnabled; break;
+                pChar  = &MasterLeds.StepEnabled; break;
             case 22: 
-                pChar  = &MasterLedStepRestart; break;
+                pChar  = &MasterLeds.StepRestart; break;
             case 23: 
-                pInt   = &MasterLedStepTime; break;
+                pInt   = &MasterLeds.StepTime; break;
                 // Runtime
             case 30: 
-                pInt   = &MasterLedStatus; break;
+                pInt   = &MasterLeds.Status; break;
             case 31: 
-                pInt   = &MasterLedCounter; break;
+                pChar  = &MasterLeds.Tick; break;
             case 32: 
-                pInt   = &MasterLedStepTick; break;
+                pInt   = &MasterLeds.StepTick; break;
             case 33: 
-                pChar  = &MasterLedStep; break;
-                /*** MASTER TONES ***/
+                pChar  = &MasterLeds.Step; break;
+        #endif
+
+        #if defined(LIB_KEYS)
+                /*** MASTER MUSIC ***/
                 // Configs
             case 40: 
-                pChar  = &MasterToneEnabled; break;
+                pChar  = &MasterMusic.enabled; break;
             case 41: 
-                pChar  = &MasterToneMode; break;
+                pChar  = &MasterMusic.mode; break;
             case 42: 
-                pInt   = &MasterToneTempo; break;
+                pInt   = &MasterMusic.tempo; break;
             case 43: 
-                pChar  = &MasterTonePitch; break;
+                pChar  = &MasterMusic.pitch; break;
             case 44: 
-                pChar  = &MasterToneRestart; break;
+                pChar  = &MasterMusic.restart; break;
             case 45: 
-                pChar  = &MasterTonePeriod; break;
+                pChar  = &MasterMusic.period; break;
             case 46: 
-                pInt   = &MasterToneTime; break;
+                pInt   = &MasterMusic.time; break;
                 // Runtime
             case 60: 
-                pChar  = &MasterToneTick; break;
+                pChar  = &MasterMusic.address; break;
             case 61: 
-                pInt   = &MasterToneCounter; break;
+                pChar  = &MasterMusic.length; break;
             case 62: 
-                pChar  = &MasterToneStep; break;
+                pChar  = &MasterMusic.tick; break;
+            case 63: 
+                pInt   = &MasterMusic.counter; break;
+            case 64: 
+                pChar  = &MasterMusic.step; break;
+        #endif
+
+        #if defined(LIB_KEYS)
                 /*** MASTER KEYS ***/
             case 70: 
-                pInt   = &MasterKeysFunction; break;
+                pInt   = &MasterKeys.Function; break;
             case 71: 
-                pInt   = &MasterKeysAddress; break;
+                pInt   = &MasterKeys.Address; break;
             case 72: 
-                pInt   = &MasterKeysInput; break;
+                pInt   = &MasterKeys.Input; break;
             case 73: 
-                pInt   = &MasterKeysSwitches; break;
+                pInt   = &MasterKeys.Switches; break;
                 /*** MASTER BUTTONS ***/
             case 80: 
-                pInt   = &MasterButtonsTick; break;
+                pChar  = &MasterKeys.Tick; break;
             case 81: 
-                pInt   = &MasterButtonsBit; break;
+                pChar  = &MasterKeys.Bit; break;
             case 82: 
-                var    = MasterButtonsTime; break;
+                pChar  = &MasterKeys.Time; break;
             case 83: 
-                pInt   = &MasterButtonsRunEnabled; break;
+                pChar  = &MasterKeys.Run; break;
+        #endif
 
+        #if defined(LIB_PROGRAM)
                 /*** MASTER PROGRAM ***/
                 // Configs
             case 90: 
-                pLong  = &MasterProgramTime; break;
+                pLong  = &MasterProgram.Time; break;
             case 91: 
-                pInt   = &MasterProgramRun; break;
+                pInt   = &MasterProgram.Run; break;
             case 92: 
-                pInt   = &MasterProgramEnabled; break;
+                pInt   = &MasterProgram.Enabled; break;
                 // Runtime
             case 93: 
-                pLong  = &MasterProgramTick; break;
+                pLong  = &MasterProgram.Tick; break;
             case 94: 
-                pInt   = &MasterProgramStep; break;
-                
+                pInt   = &MasterProgram.Step; break;
+        #endif
                 /*** PORTS ***/  
             case 100: 
                 pChar  = &PORTA; break;
@@ -719,7 +416,7 @@ void APP_CMD_var(unsigned char *pArgs){
             default:
                 if (num >= 0x0F60 && num <= 0x0FFF){
                     // Special registers
-                    pChar = num;
+                    pChar = (unsigned char *) num;
                 }
                 else{
                     bOK = false;
@@ -749,11 +446,11 @@ void APP_CMD_var(unsigned char *pArgs){
 
             if (pChar){
                 byte2binstr(sStr1, *pChar);
-                sprintf(sReply, "%u Char %3u %2x %s", num, *pChar, *pChar, sStr1);
+                sprintf(sReply, "%u Char %3u %2x %s @ %04u", num, *pChar, *pChar, sStr1, pChar);
             }
             else if (pInt){
                 int2binstr(sStr1, *pInt);
-                sprintf(sReply, "%u Int %5u %4u %s", num, *pInt, *pInt, sStr1);
+                sprintf(sReply, "%u Int %5u %4u %s @ %04u", num, *pInt, *pInt, sStr1, pInt);
             }
             else if (pLong){
                 any2binstr(sStr5, *pLong, 32);
@@ -768,6 +465,41 @@ void APP_CMD_var(unsigned char *pArgs){
     printReply(bOK, "VAR", sReply);
 }
 
+void APP_CMD_var_ee(unsigned char *pArgs){
+    bool bOK = true;
+    unsigned char *pArg1 = NULL;
+    unsigned char *pArg2 = NULL;
+    
+    unsigned char addr;
+    unsigned char val;
+
+    sReply[0] = 0x00;
+
+    pArg1 = strtok(pArgs, txtWhitespace);
+    pArg2 = strtok(NULL,  txtWhitespace);
+    
+
+    if (!pArg1){
+        bOK = false;
+        strcat(sReply, txtErrorMissingArgument);
+    }
+    else {
+        addr = atoi(pArg1);
+        if (pArg2){
+            val = (unsigned char) atoi(pArg2);
+            eeprom_write(addr, val);
+            sprintf(sReply, "W %02x <- %02x", addr, val);
+        }
+        else{
+            val = (unsigned char) eeprom_read(addr);
+            sprintf(sReply, "R %02x = %02x", addr, val);
+        }
+    }
+    
+    printReply(bOK, "VAR", sReply);
+}
+                
+ 
 
 void APP_CMD_mem(unsigned char *pArgs){
     /*

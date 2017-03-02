@@ -6,7 +6,7 @@
 
 # Macros
 TOP=`pwd`
-CND_CONF=Default
+CND_CONF=Puncher
 CND_DISTDIR=dist
 TMPDIR=build/${CND_CONF}/${IMAGE_TYPE}/tmp-packaging
 TMPDIRNAME=tmp-packaging
