@@ -14,7 +14,7 @@ firmware/MPLAB.X/debug/
 firmware/MPLAB.X/dist/
 firmware/MPLAB.X/nbdist/
 firmware/MPLAB.X/nbbuild/*
-firmware/MPLAB.X/nbbuild/nbproject/private/
+firmware/MPLAB.X/nbbuild/nbproject/private/*
 firmware/MPLAB.X/nbbuild/nbproject/Package-*.bash
 firmware/MPLAB.X/nbactions.xml
 firmware/MPLAB.X/nb-configuration.xml
