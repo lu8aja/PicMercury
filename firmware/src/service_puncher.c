@@ -27,9 +27,9 @@
 
 #define PUNCHER_BUFFER_SIZE 16
 
-//                                  00 000000 0000000011111111111   1111   1   22 222 222 222 222223 3333333333   3333   3
-//                                  01 234567 89abcdef0123456789a   bcde   f   01 234 567 89a bcdef0 123456789a   bcde   f  
-const unsigned char txtITA2[] = "\x00E\nA SIU\rDRJNFCKTZLWHYPQOBG\x0fMXV\x0e\x003\n- \'87\r$4\a,!:(5\")2#6019?&\x0f./;\x0e";
+//                                  00 000000 0000000011111111111   1111   1     22 222 222 222 222223 3333333333   3333   3
+//                                  01 234567 89abcdef0123456789a   bcde   f     01 234 567 89a bcdef0 123456789a   bcde   f  
+const unsigned char txtITA2[] = "\x00E\nA SIU\rDRJNFCKTZLWHYPQOBG\x0fMXV\x0e" "\x003\n- \'87\r$4\a,!:(5\")2#6019?&\x0f./;\x0e";
 
 
 unsigned char Puncher_Buffer[PUNCHER_BUFFER_SIZE];

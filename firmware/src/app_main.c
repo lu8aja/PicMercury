@@ -1,24 +1,4 @@
-/********************************************************************
- Software License Agreement:
 
- The software supplied herewith by Microchip Technology Incorporated
- (the "Company") for its PIC(R) Microcontroller is intended and
- supplied to you, the Company's customer, for use solely and
- exclusively on Microchip PIC Microcontroller products. The
- software is owned by the Company and/or its supplier, and is
- protected under applicable copyright laws. All rights are reserved.
- Any use in violation of the foregoing restrictions may subject the
- user to criminal sanctions under applicable laws, as well as to
- civil liability for the breach of the terms and conditions of this
- license.
-
- THIS SOFTWARE IS PROVIDED IN AN "AS IS" CONDITION. NO WARRANTIES,
- WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING, BUT NOT LIMITED
- TO, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- PARTICULAR PURPOSE APPLY TO THIS SOFTWARE. THE COMPANY SHALL NOT,
- IN ANY CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL OR
- CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
- *******************************************************************/
 
 /** INCLUDES *******************************************************/
 #include <xc.h>
@@ -73,12 +53,11 @@ void         APP_main(void);
 
 /** PRIVATE PROTOTYPES ***************************************/
 // USB
-void         APP_usbConfigured(void);
-void         APP_checkCommands(void);
-void         APP_executeCommand(void);
+void         APP_executeCommand(unsigned char *pLine);
 
-void APP_USB_input(void);
-void APP_USB_output(void);
+void         APP_USB_configured(void);
+void         APP_USB_input(void);
+void         APP_USB_output(void);
 
 
 /** FUNCTIONS *******************************************************/
@@ -132,8 +111,8 @@ void APP_init(void){
         #endif
     #endif
 
-	// Timer0 setup (Clock 1:16 => once every 1/3 ms)
-	T0CON               = 0b01000000; // [0]Off, [1]8bit, [0]CLKO, [0]L2H, [0]PreOn, [011]1:16
+	// Timer0 setup (check globals)
+	T0CON               = MasterClockTimer;
 	INTCONbits.TMR0IE   = 1;
 	T0CONbits.TMR0ON    = 1;          // Enable
     
@@ -211,9 +190,9 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
     #if defined(LIB_I2C)
     if (I2C_InterruptFlag){
         #if defined(DEVICE_CONSOLE)
-            I2C_Master_service();
+            I2C_Master_interrupt();
         #else
-            I2C_Slave_service();
+            I2C_Slave_interrupt();
         #endif
         I2C_InterruptFlag = 0; // Clear interrupt
     }
@@ -271,8 +250,12 @@ void APP_main(){
     #endif
 
     // I2C
-    #if defined(LIB_I2C) && defined(DEVICE_CONSOLE)
-        //I2C_Master_service();
+    #if defined(LIB_I2C)
+        #if defined(DEVICE_CONSOLE)
+            //I2C_Master_service();
+        #else
+            I2C_Slave_service();
+        #endif
     #endif
     
     // USB I/O handling
@@ -292,10 +275,13 @@ void APP_USB_input(void){
             if (nBytes > 0) {
                 /* For every byte that was read... */
                 if (bufChunk[0] == 0x0D || bufChunk[0] == 0x0A){
-                    bufCommand[posCommand] = 0x00;
-                    bufCommand[posCommand + 1] = 0x00; // Workaround for args parsing
-                    APP_executeCommand();
-                    break;
+                    if (posCommand){
+                        bufCommand[posCommand] = 0x00;
+                        APP_executeCommand(bufCommand);
+                        posCommand = 0;
+                        bufCommand[0] = 0x00;
+                        break;
+                    }
                 }
                 else{
                     bufCommand[posCommand] = bufChunk[0];
@@ -332,28 +318,30 @@ void APP_USB_output(void){
 
 
 
-void APP_executeCommand(void){
-    unsigned char n;
-    unsigned char val;
+void APP_executeCommand(unsigned char *pLine){
     unsigned bOK = true;
     unsigned char *ptrCommand;
     unsigned char *ptrArgs;
-    
-    if (bufCommand[0] == 0x00){
-        //return;
+    unsigned char n;
+    unsigned char val;
+
+    if (pLine[0] == 0x00){
+        return;
     }
    
+    pLine[strlen(pLine) + 1] = 0; // Workaround for args parsing
+    
     // Get the command
-    ptrCommand = strtok(bufCommand, txtWhitespace);
+    ptrCommand = strtok(pLine, txtWhitespace);
     ptrArgs = NULL;
     // Get the arguments
     if (ptrCommand != NULL){
-        ptrArgs = &bufCommand[strlen(ptrCommand) + 1];
+        ptrArgs = &pLine[strlen(ptrCommand) + 1];
     }
+
+    print(txtCrLf);    
     
     str2lower(ptrCommand);    
-    
-    print(txtCrLf);
 
     if (ptrCommand == NULL){    
         printReply(0, txtErrorMissingCommand, ptrCommand);
@@ -455,13 +443,11 @@ void APP_executeCommand(void){
     else {
         printReply(0, txtErrorUnknownCommand, 0);
     }
-    posCommand = 0;
-    bufCommand[0] = 0x00;
 }
 
 /* USB stuff within APP */
 
-void APP_usbConfigured(void){
+void APP_USB_configured(void){
     CDCInitEP();
     line_coding.bCharFormat = 0;
     line_coding.bDataBits   = 8;

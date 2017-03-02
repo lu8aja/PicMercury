@@ -26,6 +26,7 @@ typedef struct {
     unsigned char State;       // State Machine: 0 = Off / 1 = 
     unsigned char AutoIdle;    // Set to idle when done with transaction
     unsigned char Address;     // Slave address 7 bits
+    unsigned char Execute;     // Must execute command
     unsigned char *Output;     // Output buffer
     unsigned char InputPos;    // Input buffer position
     unsigned char *Input;      // Input buffer
@@ -42,7 +43,9 @@ inline void I2C_Master_init(void){
     MasterI2C.Slave   = 0;       // Master
     MasterI2C.Input   = &InputBuffer;
     MasterI2C.InputPos= 0;       // Link Input buffer and pos
+    MasterI2C.Execute = 0;
     MasterI2C.State   = 0;       // State machine
+
 
     // Configure as inputs
     TRISBbits.RB0     = 1;
@@ -57,17 +60,19 @@ inline void I2C_Master_init(void){
     SSPCON1bits.SSPEN = 1;       // Enable MSSP
 }
 
-void I2C_Master_service(void){
+void I2C_Master_interrupt(void){
     if (I2C_InterruptFlag){
-        /*
+
+/*
         if (MasterI2C.State){
+
             byte2binstr(sStr1, SSPSTAT);
             byte2binstr(sStr2, SSPCON1);
             byte2binstr(sStr3, SSPCON2);
             printf("SM=%u STAT=%s CON1=%s CON2=%s\r\n", MasterI2C.State, sStr1, sStr2, sStr3);
-
         }
-        */
+ */
+
 
         switch(MasterI2C.State){
         /* Master Write */
@@ -85,6 +90,7 @@ void I2C_Master_service(void){
                 }
                 SSPCON2bits.SEN   = 1; //Send Start Condition
                 MasterI2C.State = 2;
+                break;
             // 2 - Send Address
             case 2:
                 if (I2C_Master_busy){
@@ -111,26 +117,14 @@ void I2C_Master_service(void){
                 MasterI2C.State = 3;
                 SSPBUF = *MasterI2C.Output;
                 MasterI2C.Output++;
+                
                 if (! *MasterI2C.Output){
                     // Null found
                     MasterI2C.State = 4;
                 }
                 break;
-            // 4 - Null
+            // 4 - Stop
             case 4: 
-                if (I2C_Master_busy){
-                    break;
-                }
-                if(SSPCON2bits.ACKSTAT){
-                    // Error: No ACK is received
-                    MasterI2C.State = 251;
-                    return;
-                } 
-                MasterI2C.State = 5;
-                SSPBUF = 0x00;
-                break;
-            // 5 - Stop
-            case 5: 
                 if (I2C_Master_busy){
                     break;
                 }
@@ -139,11 +133,11 @@ void I2C_Master_service(void){
                     MasterI2C.State = 250;
                     return;
                 } 
-                MasterI2C.State = 6;
+                MasterI2C.State = 5;
                 SSPCON2bits.PEN = 1; //Send Stop Condition
                 break;
-            // 6 - Check Stop ACK
-            case 6: 
+            // 5 - Check Stop ACK
+            case 5: 
                 if (I2C_Master_busy){
                     break;
                 }
@@ -152,9 +146,9 @@ void I2C_Master_service(void){
                     MasterI2C.State = 249;
                     return;
                 } 
-                MasterI2C.State = MasterI2C.AutoIdle ? 0 : 7;
+                MasterI2C.State = MasterI2C.AutoIdle ? 0 : 6;
                 break;
-            // 7 - Done with output, waiting for app to clear state to idle
+            // 6 - Done with output, waiting for app to clear state to idle
 
         }
         I2C_InterruptFlag = 0; 
@@ -162,6 +156,7 @@ void I2C_Master_service(void){
 }
 
 unsigned char I2C_Master_send(unsigned char addr, const unsigned char *buff, const unsigned char bAutoIdle){
+    MasterI2C.State = 0;
     if (MasterI2C.State){
         // We're not idle or there was an uncleared error!
         return MasterI2C.State;
@@ -205,6 +200,7 @@ inline void I2C_Slave_init(void){
     MasterI2C.Slave   = 1;           // Slave
     MasterI2C.Input   = &InputBuffer;
     MasterI2C.InputPos= 0;           // Link Input buffer and pos
+    MasterI2C.Execute = 0;
     MasterI2C.State   = 0;           // State machine
     
     TRISBbits.RB0     = 1;           // Input
@@ -212,49 +208,72 @@ inline void I2C_Slave_init(void){
     SSPSTAT           = 0x80;        // Disable slew rate
     SSPADD            = MasterI2C.Address; // Slave Address
     SSPCON2           = 0x00;
-    SSPCON1           = 0b00110110;  // SSPEN = 1 Enable /CKP = 1 Release Clock /SSPM[4] = 0110 I2C Slave Mode
+    SSPCON1           = 0b00111110;  // SSPEN = 1 Enable /CKP = 1 Release Clock /SSPM[4] = 0110 I2C Slave Mode
     PIE1bits.SSPIE    = 1;           // Enable SSP interrupts
     PIR1bits.SSPIF    = 0;           // Clear interrupt flag
 }
 
+
 inline void I2C_Slave_service(void){
+    if (MasterI2C.Execute){
+        if (MasterI2C.Input[0]){
+            APP_executeCommand(MasterI2C.Input);
+            MasterI2C.InputPos = 0;
+            MasterI2C.Input[0] = 0x00;
+        }
+        MasterI2C.Execute = 0;
+    }
+};
+                    
+inline void I2C_Slave_interrupt(void){
     unsigned char cChar;
     const unsigned char txtI2C[] = "I2C";
 
     
-    if(SSPIF == 1){
+    if(I2C_InterruptFlag){
         SSPCON1bits.CKP = 0; // Hold clock
 
-        byte2binstr(sStr1, SSPSTAT);
-        byte2binstr(sStr2, SSPCON1);
-        byte2binstr(sStr3, SSPCON2);
-        sprintf(sReply, "SM=%u STAT=%s CON1=%s CON2=%s", MasterI2C.State, sStr1, sStr2, sStr3);
-       
-        printReply(3, txtI2C, sReply);
-
-        if (SSPCON1bits.SSPOV || SSPCON1bits.WCOL){ //If overflow or collision
-          cChar = SSPBUF; // Read the previous value to clear the buffer
-          SSPCON1bits.SSPOV = 0; // Clear the overflow flag
-          SSPCON1bits.WCOL  = 0; // Clear the collision bit
-        }
-        
-        if(!SSPSTATbits.DA){
-            // ADDRESS
-            if (!SSPSTATbits.RW){ 
-                // Address + Write
-                cChar = SSPBUF; // Read the previous value to clear the buffer
+        if (SSPSTATbits.S && !SSPSTATbits.BF){
+            if (MasterI2C.Execute){
+//putch('!');     
             }
-            else{
-                // WTF?
+            // Start bit
+            MasterI2C.InputPos = 0;
+            MasterI2C.Input[MasterI2C.InputPos] = 0x00;
+//putch('<');
+        }
+        else if (SSPSTATbits.P){
+//putch('>');
+            // Stop bit
+            if (MasterI2C.InputPos){
+                MasterI2C.Execute = 1;
             }
         }
         else {
-            // DATA
-            if(!SSPSTATbits.RW){ 
-                // WRITE
-                cChar = SSPBUF;
-                /* For every byte that was read... */
-                if (cChar){
+            // Data transfers
+            if (SSPCON1bits.SSPOV || SSPCON1bits.WCOL){ //If overflow or collision
+              cChar = SSPBUF; // Read the previous value to clear the buffer
+              SSPCON1bits.SSPOV = 0; // Clear the overflow flag
+              SSPCON1bits.WCOL  = 0; // Clear the collision bit
+            }
+
+            if(!SSPSTATbits.DA){
+//putch('A');
+                // ADDRESS
+                if (!SSPSTATbits.RW){ 
+                    // Address + Write
+                    cChar = SSPBUF; // Read the previous value to clear the buffer
+                }
+                else{
+                    // WTF?
+                }
+            }
+            else {
+                // DATA
+                if(!SSPSTATbits.RW){ 
+                    // WRITE
+                    cChar = SSPBUF;
+//putch(cChar);
                     MasterI2C.Input[MasterI2C.InputPos] = cChar;
                     MasterI2C.InputPos++;
                     if (MasterI2C.InputPos >= I2C_sizeInput){
@@ -264,46 +283,25 @@ inline void I2C_Slave_service(void){
                     }
                     MasterI2C.Input[MasterI2C.InputPos] = 0;
                 }
-                else{
-                    MasterI2C.Input[MasterI2C.InputPos] = 0x00;
-                    if (!posCommand){
-                        strcpy(bufCommand, MasterI2C.Input);
-                        MasterI2C.InputPos = 0;
-                        MasterI2C.Input[MasterI2C.InputPos] = 0x00;
-                        APP_executeCommand();
+                else if(SSPSTATbits.RW){
+                    // READ
+                    //If last byte was Data + Read
+                    SSPSTATbits.BF = 0;
+                    if (*MasterI2C.Output){
+                        SSPBUF = *MasterI2C.Output;
+                        MasterI2C.Output++;
                     }
                     else{
-                        printReply(3, txtI2C, MasterI2C.Input);
-                        MasterI2C.InputPos++;
-                        if (MasterI2C.InputPos >= I2C_sizeInput){
-                            // Error: Buffer overflow
-                            printReply(4, txtI2C, MasterI2C.Input);
-                            MasterI2C.InputPos = 0;
-                        }
-                        MasterI2C.Input[MasterI2C.InputPos] = 0;
+                        // Buffer underrun / End of buffer
+                        SSPBUF = 0;
                     }
-                }
-
-                printReply(3, txtI2C, MasterI2C.Input);
+                }        
             }
-            else if(SSPSTATbits.RW){
-                // READ
-                //If last byte was Data + Read
-                SSPSTATbits.BF = 0;
-                if (*MasterI2C.Output){
-                    SSPBUF = *MasterI2C.Output;
-                    MasterI2C.Output++;
-                }
-                else{
-                    // Buffer underrun / End of buffer
-                    SSPBUF = 0;
-                }
-            }        
         }
 
         
-        SSPIF = 0;
-        SSPCON1bits.CKP = 1; // Release clock
+        I2C_InterruptFlag = 0;
+        SSPCON1bits.CKP   = 1; // Release clock
     }
 }
 

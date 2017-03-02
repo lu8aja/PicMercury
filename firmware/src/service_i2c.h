@@ -21,6 +21,7 @@ typedef struct {
     unsigned char State;       // State Machine: 0 = Off / 1 = 
     unsigned char AutoIdle;    // Set to idle when done with transaction
     unsigned char Address;     // Slave address 7 bits
+    unsigned char Execute;     // Must execute command
     unsigned char *Output;     // Output buffer
     unsigned char InputPos;    // Input buffer position
     unsigned char *Input;      // Input buffer
@@ -30,10 +31,11 @@ extern i2c_t MasterI2C;
 
 
 inline void   I2C_Master_init(void);
-void          I2C_Master_service(void);
+void          I2C_Master_interrupt(void);
 unsigned char I2C_Master_send(unsigned char addr, const unsigned char *buff, const unsigned char bAutoIdle);
 
 inline void   I2C_Slave_init(void);
+inline void   I2C_Slave_interrupt(void);
 inline void   I2C_Slave_service(void);
 
 void I2C_cmd(unsigned char *pArgs);

@@ -30,6 +30,7 @@
 
 #include "system_config.h"
 
+/** PROTOTYPES *******************************************************/
 // APP Commands
 void APP_CMD_ping(unsigned char *pArgs);
 void APP_CMD_uptime(unsigned char *pArgs);
@@ -43,7 +44,7 @@ void APP_CMD_var(unsigned char *pArgs);
 void APP_CMD_mem(unsigned char *pArgs);
 void APP_CMD_dump(unsigned char *pArgs);
 
-
+/** FUNCTIONS *******************************************************/
 void APP_CMD_ping(unsigned char *pArgs){
     printReply(1, "PONG", pArgs);
 }

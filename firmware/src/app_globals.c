@@ -55,6 +55,9 @@ const char txtErrorBusy[]            = "Busy";
 unsigned char MasterDebug         = 0;     // 
 
 /*** MASTER CLOCK */
+
+// Timer0 setup (Clock 1:2 => once every 1/23 ms aprox)
+#define       MasterClockTimer 0b01000000  // [0]Off, [1]8bit, [0]CLKO, [0]L2H, [0]PreOn, [000]1:2
 #define       MasterClockTickCount  23     // Number of ticks per ms
 unsigned char MasterClockTick     = 23;    // Tick counter 0,1,2
 unsigned long MasterClockMS       = 0;     // MS counter, good for up to over a month
@@ -75,7 +78,7 @@ unsigned long MasterNotifyNow     = 0;     // When not 0, the main loop will not
 
 unsigned char  bufChunk[sizeChunk];
 unsigned char  bufOutput[sizeOutput + 1];
-unsigned char  bufCommand[sizeCommand];
+unsigned char  bufCommand[sizeCommand]   = "";
 unsigned char  bufTmp[sizeOutUsb + 1];
 unsigned char  sReply[sizeReply];
 unsigned char  sStr1[sizeStr];
@@ -86,7 +89,6 @@ unsigned char  sStr5[sizeStr * 4];
 
 unsigned int   posOutput       = 0;
 unsigned char  posCommand      = 0;
-
 
 /*** Console ***/
 typedef struct {

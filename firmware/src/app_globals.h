@@ -45,6 +45,8 @@ extern const char txtErrorBusy[];
 extern unsigned char MasterDebug         ;     // 
 
 /*** MASTER CLOCK */
+// Timer0 setup (Clock 1:2 => once every 1/23 ms aprox)
+#define       MasterClockTimer 0b01000000  // [0]Off, [1]8bit, [0]CLKO, [0]L2H, [0]PreOn, [000]1:2
 #define       MasterClockTickCount  23         // Number of ticks per ms
 extern unsigned char MasterClockTick     ;     // Tick counter 0,1,2
 extern unsigned long MasterClockMS       ;     // MS counter, good for up to over a month

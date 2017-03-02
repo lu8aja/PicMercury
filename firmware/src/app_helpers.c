@@ -60,7 +60,10 @@ void printReply(const unsigned char nType, const unsigned char *pCmd, const unsi
             print("@OK ");
             break;
     }
-    print(pCmd);
+    while (*pCmd){
+        putch(*pCmd);
+        pCmd++;
+    }
     if (pReply && strlen(pReply)){
         print(": ");
         print(pReply);
@@ -129,7 +132,7 @@ void putch(const unsigned char byte){
 
 
 void print(const unsigned char *pStr){
-    while (*pStr > 0){
+    while (*pStr){
         putch(*pStr);
         pStr++;
     }

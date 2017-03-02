@@ -84,8 +84,8 @@ inline void Program_service(void){
                 printReply(3, "RUN", sReply);
 
                 strcpy(bufCommand, pProgram);
-                APP_executeCommand();
-
+                APP_executeCommand(bufCommand);
+                bufCommand[0] = 0;
             }
         }
     }
