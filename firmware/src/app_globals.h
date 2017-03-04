@@ -64,6 +64,8 @@ extern unsigned long MasterNotifyNow     ;     // When not 0, the main loop will
 #define sizeReply    100
 #define sizeStr       17
 
+#define I2C_sizeInput 32
+
 extern unsigned char  bufChunk[sizeChunk];
 extern unsigned char  bufOutput[sizeOutput + 1];
 extern unsigned char  bufCommand[sizeCommand];

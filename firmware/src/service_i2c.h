@@ -13,7 +13,11 @@
 #define I2C_BAUD 100      // Desired Baud Rate in kbps
 #define I2C_FOSC 20000    // Oscillator Clock in kHz
 #define I2C_InterruptFlag PIR1bits.SSPIF
-#define I2C_sizeInput 4
+
+#ifndef I2C_sizeInput
+    // This is the default, but for convenience it can be defined at globals with the other buffers
+    #define I2C_sizeInput     16
+#endif
 
 typedef struct {
     unsigned char Enabled;     // 0 = Off / 1 = On
@@ -24,10 +28,10 @@ typedef struct {
     unsigned char Execute;     // Must execute command
     unsigned char *Output;     // Output buffer
     unsigned char InputPos;    // Input buffer position
-    unsigned char *Input;      // Input buffer
+    unsigned char Input[I2C_sizeInput]; // Input buffer
 } i2c_t;
 
-extern i2c_t MasterI2C;
+extern i2c_t I2C;
 
 
 inline void   I2C_Master_init(void);

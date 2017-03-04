@@ -15,8 +15,8 @@
 
 #define PUNCHER_TRIS TRISD        // Port tris
 #define PUNCHER_LAT  LATD         // Port latch
-#define PUNCHER_BIT_ADVANCE  0b10000000 // Bitmask for advancing the paper
-#define PUNCHER_BIT_GUIDE    0b01000000 // Bitmask for the guide hole
+#define PUNCHER_BIT_ADVANCE  0b01000000 // Bitmask for advancing the paper
+#define PUNCHER_BIT_GUIDE    0b00100000 // Bitmask for the guide hole
 #define PUNCHER_MASK_DATA    0b00011111 // Data mask
 #define PUNCHER_MASK_SHIFT   0b00100000 // Shift mask (used for mode 1))
 #define PUNCHER_MASK_NONZERO 0b10000000 // Used as flag in conversions
@@ -27,9 +27,11 @@
 
 #define PUNCHER_BUFFER_SIZE 16
 
-//                                  00 000000 0000000011111111111   1111   1     22 222 222 222 222223 3333333333   3333   3
-//                                  01 234567 89abcdef0123456789a   bcde   f     01 234 567 89a bcdef0 123456789a   bcde   f  
-const unsigned char txtITA2[] = "\x00E\nA SIU\rDRJNFCKTZLWHYPQOBG\x0fMXV\x0e" "\x003\n- \'87\r$4\a,!:(5\")2#6019?&\x0f./;\x0e";
+//                                  00   000000   0000000011111111111   1111   1     22 222 222 222 222223 3333333333   3333   3
+//                                  01   234567   89abcdef0123456789a   bcde   f     01 234 567 89a bcdef0 123456789a   bcde   f  
+//const unsigned char txtITA2[] = "\x00E\x0aA SIU\x0dDRJNFCKTZLWHYPQOBG\x0fMXV\x0e" "\x003\n- \'87\r$4\a,!:(5\")2#6019?&\x0f./;\x0e";
+
+const unsigned char txtITA2[] = {0,'E',0x0a,'A',' ','S','I','U',0x0d,'D','R','J','N','F','C','K','T','Z','L','W','H','Y','P','Q','O','B','G',0x0f,'M','X','V',0x0e,0x00,'3',0x0a,'-',' ','\'','8','7','\r','$','4','\a',',','!',':','(','5','\"',')','2','#','6','0','1','9','?','&',0x0f,'.','/',';',0x0e};
 
 
 unsigned char Puncher_Buffer[PUNCHER_BUFFER_SIZE];
@@ -84,17 +86,24 @@ void Puncher_service(void){
             }
             MasterPuncher.state = 2;
         }
-
+        
         if (MasterPuncher.state == 2){
+putch('%');
             bAdv = 1;
-            
             // Mode4 = HEX
             if (MasterPuncher.mode & 0x04){
                 // With HEX conversion
                 cOut = hexstr2byte(MasterPuncher.output);
                 // In this mode we need 2 advances instead of just one
-                MasterPuncher.len--;
-                MasterPuncher.output++;
+                if (MasterPuncher.len > 1){
+                    MasterPuncher.len--;
+                    MasterPuncher.output++;
+                }
+putch('x');
+putch('=');
+byte2binstr(sStr1, cOut);
+print(sStr1);
+putch(' ');
             }
             else{
                 // Direct
@@ -105,17 +114,18 @@ void Puncher_service(void){
             if (MasterPuncher.mode & 2){
                 // With ASCII -> ITA2+shift conversion
                 cIn = toupper(cOut);
+putch(cIn);
                 // Find the corresponding ITA2 for the given ASCII
-                for (cOut = 0; cOut < 66; cOut++){
-                    if (cOut == 65){
+                for (cOut = 0; cOut < 65; cOut++){
+                    if (cOut == 64){
                         // Not found
                         cOut = MasterPuncher.shift ? PUNCHER_MASK_SHIFT : 0;
                         break;
                     }
                     // The search order is determined by the current shift
                     if (MasterPuncher.shift){
-                        if (txtITA2[64 - cOut] == cIn){
-                            cOut = 64 - cOut;
+                        if (txtITA2[63 - cOut] == cIn){
+                            cOut = 63 - cOut;
                             break;
                         }
                     }
@@ -126,6 +136,11 @@ void Puncher_service(void){
                     }
                 }
                 cOut |= PUNCHER_MASK_NONZERO; // Add flag to avoid Mode0
+putch('i');
+putch('=');
+byte2binstr(sStr1, cOut);
+print(sStr1);
+putch(' ');
             }
             
             // Mode1 = ITA2+shift -> ITA2
@@ -161,7 +176,12 @@ void Puncher_service(void){
             // Deal with physical outputs now, limit data bits and add guide            
             PUNCHER_TRIS = 0;
             PUNCHER_LAT  = (cOut & PUNCHER_MASK_DATA) | PUNCHER_BIT_GUIDE;
-            
+putch('>');
+putch('=');
+byte2binstr(sStr1, PUNCHER_LAT);
+print(sStr1);
+putch('\r');
+putch('\n');
             MasterPuncher.state = 3;
             MasterPuncher.tick  = MasterPuncher.time_punch;
         }
@@ -226,7 +246,7 @@ void Puncher_cmd(unsigned char *pArgs){
 
     sReply[0] = 0x00;
 
-    str2upper(pArgs);
+    str2lower(pArgs);
     
     pArg1 = strtok(pArgs, txtWhitespace);
     
@@ -284,7 +304,7 @@ void Puncher_cmd(unsigned char *pArgs){
             if (pArg2){
                 *pVal = (unsigned char) atoi(pArg2);
             }
-            sprintf("%s = %u", sReply, pArg1, *pVal);
+            sprintf(sReply, "%s = %u", pArg1, *pVal);
         }
         else{
             bOK = false;

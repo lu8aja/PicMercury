@@ -278,7 +278,7 @@ void clock2str(char *sStr, unsigned long ms){
 }
 
 unsigned char hexstr2byte(unsigned char *sStr){
-    return (hex2byte(*sStr) << 4) & hex2byte(*(sStr + 1));
+    return (hex2byte(*sStr) << 4) | hex2byte(*(sStr + 1));
 }
 
 unsigned char hex2byte(unsigned char c){

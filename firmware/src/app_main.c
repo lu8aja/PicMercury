@@ -30,7 +30,7 @@
 // Optional libraries with associated commands
 
 #if defined(DEVICE_PUNCHER)
-    //#include "service_puncher.h"   // Puncher library with associated PUNCH cmd
+    #include "service_puncher.h"   // Puncher library with associated PUNCH cmd
 #endif
 
 #if defined(DEVICE_CONSOLE)
@@ -99,13 +99,13 @@ void APP_init(void){
             I2C_Master_init();
         #else
             #if defined(DEVICE_PUNCHER)
-                MasterI2C.Address = I2C_ADDRESS_PUNCHER;
+                I2C.Address = I2C_ADDRESS_PUNCHER;
             #elif defined(DEVICE_READER)
-                MasterI2C.Address = I2C_ADDRESS_READER;
+                I2C.Address = I2C_ADDRESS_READER;
             #elif defined(DEVICE_CRTS)
-                MasterI2C.Address = I2C_ADDRESS_CRTS;
+                I2C.Address = I2C_ADDRESS_CRTS;
             #else // Some other unknown device!?
-                MasterI2C.Address = 0b01111111;
+                I2C.Address = 0b01111111;
             #endif
             I2C_Slave_init();
         #endif
