@@ -373,7 +373,7 @@ typedef union _POINTER
         #define USBUnmaskInterrupts() 
     #endif
     
-    #define USBInterruptFlag PIR3bits.USBIF
+    #define USB_InterruptFlag PIR3bits.USBIF
     
     //STALLIE, IDLEIE, TRNIE, and URSTIE are all enabled by default and are required
     #if defined(USB_INTERRUPT)
@@ -403,7 +403,7 @@ typedef union _POINTER
         #define USBUnmaskInterrupts() 
     #endif
     
-    #define USBInterruptFlag PIR2bits.USBIF
+    #define USB_InterruptFlag PIR2bits.USBIF
     
     //STALLIE, IDLEIE, TRNIE, and URSTIE are all enabled by default and are required
     #if defined(USB_INTERRUPT)
@@ -432,7 +432,7 @@ typedef union _POINTER
         #define USBUnmaskInterrupts() 
     #endif
     
-    #define USBInterruptFlag PIR2bits.USBIF
+    #define USB_InterruptFlag PIR2bits.USBIF
     
     //STALLIE, IDLEIE, TRNIE, and URSTIE are all enabled by default and are required
     #if defined(USB_INTERRUPT)

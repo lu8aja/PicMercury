@@ -31,7 +31,7 @@ typedef struct {
     unsigned char Time;         // Ticks in ms to count while flashing led
     unsigned char StepEnabled;  // 0 = Off / 1 = On
     unsigned char StepRestart;  // 0 = Disable when Time is reached / 1 = Restart 
-    unsigned char StepTime;     // Time in ms the step should be help in place
+    unsigned int  StepTime;     // Time in ms the step should be help in place
     
     // Runtime
     unsigned int  Status;       // Bitfield of 16 leds statuses
@@ -83,9 +83,9 @@ void Leds_cmd(unsigned char *pArgs);
 inline void Leds_init(void){
     // Configs
     MasterLeds.Enabled    = 1;
-    MasterLeds.Time       = 500;   // Ticks in ms to count while flashing led
-    MasterLeds.StepEnabled= 0;     // 0 = Off / 1 = On
-    MasterLeds.StepRestart= 0;     // 0 = Disable when Time is reached / 1 = Restart 
+    MasterLeds.Time       = 3;   // Ticks in ms to count while flashing led
+    MasterLeds.StepEnabled= 1;     // 0 = Off / 1 = On
+    MasterLeds.StepRestart= 1;     // 0 = Disable when Time is reached / 1 = Restart 
     MasterLeds.StepTime   = 1500;  // Time in ms for each step
     // Runtime
     MasterLeds.Status     = 0;     // Bitfield of 16 leds statuses

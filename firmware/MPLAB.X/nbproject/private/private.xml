@@ -12,12 +12,13 @@
     </editor-bookmarks>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/D:/Projects/PicMercury/PicMercury/firmware/src/app_helpers.c</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury/firmware/src/service_puncher.c</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury/firmware/src/app_main.c</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury/firmware/src/service_i2c.h</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury/firmware/src/app_globals.h</file>
-            <file>file:/D:/Projects/PicMercury/PicMercury/firmware/src/service_i2c.c</file>
+            <file>file:/C:/Clementina/PicMercury/firmware/src/service_keys.c</file>
+            <file>file:/C:/Clementina/PicMercury/firmware/src/service_leds.c</file>
+            <file>file:/C:/Clementina/PicMercury/firmware/src/app_main.c</file>
+            <file>file:/C:/Clementina/PicMercury/firmware/src/service_leds.h</file>
+            <file>file:/C:/Clementina/PicMercury/firmware/src/app_programs.c</file>
+            <file>file:/C:/Clementina/PicMercury/firmware/src/app_cmd.c</file>
+            <file>file:/C:/Clementina/PicMercury/firmware/src/service_program.c</file>
         </group>
     </open-files>
 </project-private>

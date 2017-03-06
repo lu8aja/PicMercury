@@ -26,7 +26,7 @@ extern keys_t MasterKeys;
 
 void Keys_init(void);
 inline void Keys_tick(void);
-void Keys_service(void);
+inline void Keys_service(void);
 void Keys_checkButtons(void);
 void Keys_getKeys(void);
 void Keys_getStatusReply(void);

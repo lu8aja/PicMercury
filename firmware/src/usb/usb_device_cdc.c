@@ -513,6 +513,7 @@ uint8_t getsUSBUSART(uint8_t *buffer, uint8_t len)
     
 }//end getsUSBUSART
 
+
 /**********************************************************************************
   Function:
         uint8_t getsLineUSBUSART(char *buffer, uint8_t len)

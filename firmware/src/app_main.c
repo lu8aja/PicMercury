@@ -34,12 +34,12 @@
 #endif
 
 #if defined(DEVICE_CONSOLE)
-    // #include "service_leds.h"      // Led matrix
-    // #include "service_keys.h"      // Keyboard diode matrix
-    // #include "service_music.h"     // Tone generator
+    #include "service_leds.h"      // Led matrix
+    #include "service_keys.h"      // Keyboard diode matrix
+    #include "service_music.h"     // Tone generator
     // #include "service_uart.h"      // UART
     // #include "service_monitor.h"   // Pin monitor
-    // #include "service_program.h"   // Program service
+    #include "service_program.h"   // Program service
 #endif
 
 
@@ -199,7 +199,7 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
     #endif
     
     // USB
-    if (USBInterruptFlag){
+    if (USB_InterruptFlag){
         USBDeviceTasks();
     }
 }
@@ -219,7 +219,7 @@ void APP_main(){
 
     
     #if defined(LIB_KEYS)
-    if (MasterKeys.enabled){
+    if (MasterKeys.Enabled){
         Keys_service();
     }
     #endif    
@@ -265,52 +265,46 @@ void APP_main(){
 }
 
 void APP_USB_input(void){
-    if(USBUSARTIsTxTrfReady() == true){
-        uint8_t i;
-        uint8_t n;
-        uint8_t nBytes;
+    uint8_t i;
+    uint8_t n;
+    uint8_t nBytes;
 
-        do {
-            nBytes = getsUSBUSART(bufChunk, 1);
-            if (nBytes > 0) {
-                /* For every byte that was read... */
-                if (bufChunk[0] == 0x0D || bufChunk[0] == 0x0A){
-                    if (posCommand){
-                        bufCommand[posCommand] = 0x00;
-                        APP_executeCommand(bufCommand);
-                        posCommand = 0;
-                        bufCommand[0] = 0x00;
-                        break;
-                    }
-                }
-                else{
-                    bufCommand[posCommand] = bufChunk[0];
-                    posCommand++;
+    if(!USBUSARTIsTxTrfReady()){
+        return;
+    }
+    
+    do {
+        nBytes = getsUSBUSART(bufChunk, 1);
+        if (nBytes > 0) {
+            /* For every byte that was read... */
+            if (bufChunk[0] == 0x0D || bufChunk[0] == 0x0A){
+                if (posCommand){
                     bufCommand[posCommand] = 0x00;
+                    APP_executeCommand(bufCommand);
+                    posCommand = 0;
+                    bufCommand[0] = 0x00;
+                    break;
                 }
             }
+            else{
+                bufCommand[posCommand] = bufChunk[0];
+                posCommand++;
+                bufCommand[posCommand] = 0x00;
+            }
         }
-        while(nBytes);
     }
+    while(nBytes);
 }
 
 void APP_USB_output(void){
     unsigned char len;
-    if(posOutput > 0){
-        if(USBUSARTIsTxTrfReady()){
-            if(posOutput >= sizeOutUsb){
-                len = sizeOutUsb;
-            }
-            else {
-                len = posOutput;
-            }
-            strncpy(bufTmp, bufOutput, len);
-            putUSBUSART(bufTmp, len);
-            strcpy(bufOutput, &bufOutput[len]);
-            posOutput = posOutput - len;
-            bufOutput[posOutput] = 0x00;
-            //memmove();
-        }
+    if(posOutput > 0 && USBUSARTIsTxTrfReady()){
+        len = posOutput >= sizeOutUsb ? sizeOutUsb : posOutput;
+        strncpy(bufTmp, bufOutput, len);
+        putUSBUSART(bufTmp, len);
+        strcpy(bufOutput, &bufOutput[len]);
+        posOutput = posOutput - len;
+        bufOutput[posOutput] = 0x00;
     }
 
     CDCTxService();

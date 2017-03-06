@@ -14,10 +14,11 @@
 #include "app_helpers.h"
 #include "app_io.h"
 #include "app_cmd.h"
+#include "app_main.h"
 
-#if defined(LIB_PROGRAM)
+//#if defined(LIB_PROGRAM)
     #include "service_program.h"
-#endif
+//#endif
 
 #define LIB_KEYS
 
@@ -173,13 +174,13 @@ void Keys_checkButtons(void){
         Keys_getStatusReply();
         printReply(3, "STATUS", sReply);
 
-        #if defined(LIB_PROGRAM)
-        if (MasterKeys.Run && !MasterProgram.Enabled){
+        //#if defined(LIB_PROGRAM)
+        if (MasterKeys.Run && MasterKeys.Address){
             unsigned char s[5];
-            sprintf(s, "%u", MasterKeys.Address & 0x07);
+            sprintf(s, "%u", (MasterKeys.Address >> 2) & 0x07);
             Program_cmd(s);
         }
-        #endif
+        //#endif
     }
 }
 

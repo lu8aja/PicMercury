@@ -14,7 +14,7 @@ typedef struct {
     unsigned char Time;         // Ticks to count while flashing led
     unsigned char StepEnabled;  // 0 = Off / 1 = On
     unsigned char StepRestart;  // 0 = Disable when Time is reached / 1 = Restart 
-    unsigned char StepTime;     // Time in ms the step should be help in place
+    unsigned int  StepTime;     // Time in ms the step should be help in place
     
     // Runtime
     unsigned int  Status;       // Bitfield of 16 leds statuses

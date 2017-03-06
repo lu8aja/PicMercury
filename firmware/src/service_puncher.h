@@ -21,18 +21,18 @@
 
 
 typedef struct {
-    unsigned char enabled;     // 0 = Off / 1 = On
-    unsigned char mode;        // Mode Bitfield Bit0 = 0:Direct / 1:shifted | Bit1 = 1:ASCII | Bit2 = 4:HEX
-    unsigned char shift;       // Mode 1 Shift: 0 = LTRS / 1 = FIGS
-    unsigned char state;       // State Machine: 0 = Off / 1 = 
-    unsigned char time_punch;  // Time in ms to punch the holes
-    unsigned char time_gap1;   // Time in ms between punch and advance
-    unsigned char time_advance;// Time in ms to advance the paper
-    unsigned char time_gap2;   // Time in ms to rest before next command
+    unsigned char Enabled;     // 0 = Off / 1 = On
+    unsigned char Mode;        // Mode Bitfield Bit0 = 0:Direct / 1:shifted | Bit1 = 1:ASCII | Bit2 = 4:HEX
+    unsigned char Shift;       // Mode 1 Shift: 0 = LTRS / 1 = FIGS
+    unsigned char State;       // State Machine: 0 = Off / 1 = 
+    unsigned char TimePunch;   // Time in ms to punch the holes
+    unsigned char TimeGap1;    // Time in ms between punch and advance
+    unsigned char TimeAdvance; // Time in ms to advance the paper
+    unsigned char TimeGap2;    // Time in ms to rest before next command
     
-    unsigned char tick;        // Time ticker in ms
-    unsigned char *output;     // Output buffer (must be binary safe))
-    unsigned char len;         // Output buffer counter n..0
+    unsigned char Tick;        // Time ticker in ms
+    unsigned char *Output;     // Output buffer (must be binary safe))
+    unsigned char Len;         // Output buffer counter n..0
 } puncher_t;
 
 extern puncher_t MasterPuncher;
