@@ -33,8 +33,8 @@ program_t MasterProgram;
 
 inline void Program_init(void){
     // Configs
-    MasterProgram.Enabled = 0;    // 0 = Off / 1 = On / 2 = Start Program
-    MasterProgram.Run     = 0;    // Program number being run
+    MasterProgram.Enabled = 1;    // 0 = Off / 1 = On / 2 = Start Program
+    MasterProgram.Run     = 4;    // Program number being run
     MasterProgram.Time    = 1000; // Default program step time (it can be changed via the wait cmd)
     // Runtime
     MasterProgram.Tick    = 0;    // Current step in sequence

@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stddef.h>
 
+#include "ring.h"
 
 #include "usb.h"
 #include "usb_device_cdc.h"
@@ -44,56 +45,65 @@
 #endif
 
 
-
-
-
 /** PUBLIC PROTOTYPES ***************************************/
-// Main procs
+
 void         APP_init(void);
 void         APP_main(void);
+void         APP_executeCommand(unsigned char *pLine);
+void         APP_USB_output(void);
 
 /** PRIVATE PROTOTYPES ***************************************/
 // USB
-void         APP_executeCommand(unsigned char *pLine);
-
 void         APP_USB_configured(void);
 void         APP_USB_input(void);
-void         APP_USB_output(void);
-
 
 /** FUNCTIONS *******************************************************/
 void APP_init(void){
-	MasterConsoleStatus.notify        = 0;
-	MasterConsoleStatus.reportOnce    = 0;
-	MasterConsoleStatus.bufferOverrun = 0;
-    
     ADCON1 = 0b00001111;  // We are not using any analog input
                           // This is specially important for I2C
     
-    #if defined(LIB_KEYS)
+    #ifdef LIB_KEYS
         Keys_init();
     #endif
     
-    #if defined(LIB_LEDS)
+    #ifdef LIB_LEDS
         Leds_init();
     #endif
 
-    #if defined(LIB_MUSIC)
+    #ifdef LIB_MUSIC
         Music_init();
     #endif
 
-    #if defined(LIB_PUNCHER)
+    #ifdef LIB_PUNCHER
         Puncher_init(1, 1);
     #endif
 
-    #if defined(LIB_PROGRAM)
+    #ifdef LIB_PROGRAM
         Program_init();
     #endif
 
-    #if defined(LIB_UART)
+    #ifdef LIB_UART
         UART_init();
     #endif
 
+        
+    #ifdef LIB_SOFTSERIAL
+        SoftSerial_init(&SoftSerial,
+            SOFTSERIAL_TX_Port,
+            SOFTSERIAL_TX_Pin,
+            SOFTSERIAL_TX_Invert,
+            SOFTSERIAL_RX_Port,
+            SOFTSERIAL_RX_Pin,
+            SOFTSERIAL_RX_Invert
+        );
+        
+        SoftSerial_enable(&SoftSerial,
+            0,
+            SOFTSERIAL_RX_DataBits,
+            SOFTSERIAL_RX_StopBits,
+            SOFTSERIAL_RX_Period
+        );
+    #endif
     
     #if defined(LIB_I2C)
         #if defined(DEVICE_CONSOLE)

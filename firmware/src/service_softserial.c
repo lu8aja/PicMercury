@@ -9,6 +9,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include "ring.h"
+
 #include "app_globals.h"
 #include "app_helpers.h"
 #include "app_io.h"
@@ -16,6 +18,20 @@
 #define LIB_SOFTSERIAL
 
 #define LIB_SOFTSERIAL_DEBUG 1
+
+
+#define SOFTSERIAL_TX_ENABLED 1
+#define SOFTSERIAL_RX_ENABLED 2
+
+
+
+#ifndef SoftSerial_sizeOutput
+    #define SoftSerial_sizeOutput 16
+#endif
+#ifndef SoftSerial_sizeInput
+    #define SoftSerial_sizeInput 16
+#endif
+
 
 typedef struct {
     union {
@@ -42,15 +58,13 @@ typedef struct {
     unsigned char TxState;     // State Machine: 0 = Off / 1 = 
     unsigned char TxTick;      // Time ticker in ms
     unsigned char TxByte;      // Current byte being shifted out
-    unsigned char TxPos;       // Current byte position in buffer
-    unsigned char *Output;     // Output buffer (must be binary safe)
+    ring_t       *Output;      // Output buffer (must be binary safe)
     
     unsigned char RxState;     // State Machine: 0 = Off / 1 = 
     unsigned char RxTick;      // Time ticker in ms
     unsigned char RxByte;      // Current byte being shifted in
     unsigned char RxBit;       // Current bit
-    unsigned char RxPos;       // Current byte position in buffer
-    unsigned char *Input;      // Output buffer (must be binary safe)
+    ring_t       *Input;       // Input buffer (must be binary safe)
     #if LIB_SOFTSERIAL_DEBUG
     unsigned char SyncPort;    // Sync Port (A..E or 1..5)
     unsigned char SyncBit;     // Sync Pin Bit (0..7)
@@ -59,10 +73,6 @@ typedef struct {
 
 
 SoftSerial_t SoftSerial;
-
-#define sizeSerialOutput 32
-unsigned char bufSerialOutput[sizeSerialOutput + 1];
-unsigned char bufSerialInput[16];
 
 void SoftSerial_init(SoftSerial_t *pSerial, unsigned char nTxPort, unsigned char nTxPin, unsigned char nTxInvert, unsigned char nRxPort, unsigned char nRxPin, unsigned char nRxInvert);
 void SoftSerial_enable(SoftSerial_t *pSerial, unsigned char nEnabled, unsigned char nDataBits, unsigned char nStopBits, unsigned char nBitPeriod);
@@ -86,7 +96,17 @@ void SoftSerial_init(SoftSerial_t *pSerial, unsigned char nTxPort, unsigned char
     pSerial->DataBits  = 8;
     pSerial->StopBits  = 1;
     pSerial->BitPeriod = 20;
-
+    
+    // Buffers should NEVER be created twice!
+    if (!pSerial->Output){
+        pSerial->Output = ring_new(SoftSerial_sizeOutput);
+        if (!pSerial->Output->Buffer){
+            pSerial->ErrorRxOverflow = 1;
+        }
+    }
+    if (!pSerial->Input){
+        pSerial->Input  = ring_new(SoftSerial_sizeInput);
+    }
 }
 
 void SoftSerial_enable(SoftSerial_t *pSerial, unsigned char nEnabled, unsigned char nDataBits, unsigned char nStopBits, unsigned char nBitPeriod){
@@ -99,24 +119,20 @@ void SoftSerial_enable(SoftSerial_t *pSerial, unsigned char nEnabled, unsigned c
             pin_cfg(pSerial->TxPort, pSerial->TxPin, 0);
             pin_write(pSerial->TxPort, pSerial->TxPin, pSerial->TxInvert);
         }
-        pSerial->TxTick      = 0;
-        pSerial->TxState     = 0;
-        pSerial->TxPos        = 0;
-        pSerial->Output       = &bufSerialOutput;
-        pSerial->Output[0]    = 0;
-        pSerial->Status      |= 1;
+        pSerial->TxTick    = 0;
+        pSerial->TxState   = 0;
+        pSerial->TxEnabled = 1;
+        ring_clear(pSerial->Output);
     }
     
     if (nEnabled & 2){
         if (pSerial->RxPort > 0 && pSerial->RxPort < 6 && pSerial->RxPin < 8){
             pin_cfg(pSerial->RxPort, pSerial->RxPin, 1);
         }
-        pSerial->RxTick       = 0;
-        pSerial->RxState      = 0;
-        pSerial->RxPos        = 0;
-        pSerial->Input        = &bufSerialInput;
-        pSerial->Input[0]     = 0;
-        pSerial->Status      |= 2;
+        pSerial->RxTick    = 0;
+        pSerial->RxState   = 0;
+        pSerial->RxEnabled = 1;
+        ring_clear(pSerial->Input);
     }
     #if LIB_SOFTSERIAL_DEBUG
     pSerial->SyncPort = 3;
@@ -213,23 +229,21 @@ inline void SoftSerial_service_rx(SoftSerial_t *pSerial){
         }
         else{
             // Stop bit is correct, add to buffer
-            //ring_write(pSerial->Input, pSerial->RxByte);
-            pSerial->Input[pSerial->RxPos] = pSerial->RxByte;
-            pSerial->RxPos++;
-            if (pSerial->RxPos > 15){
+            if (ring_available(pSerial->Input)){
+                ring_write(pSerial->Input, pSerial->RxByte);
+            }
+            else{
                 // Buffer overflow
                 pSerial->ErrorRxOverflow = 1;
                 // Choose to either start overwriting the buffer, or discarding information
-                // Overwrite
-                //pSerial->RxPos = 0;
-                // Discard
-                pSerial->RxPos--;
+                // We are now discarding
             }
-            pSerial->Input[pSerial->RxPos] = 0;
+            
             #if LIB_SOFTSERIAL_DEBUG
             if (pSerial->Debug){
                 byte2binstr(sStr4, pSerial->RxByte);
-                printf("%02u [%s] <%s>\r\n", pSerial->RxPos, sStr4, pSerial->Input);
+                ring_assert(pSerial->Input, sStr5, sizeof(sStr5), true);
+                printf("%02u [%s] <%s>\r\n", ring_strlen(pSerial->Input), sStr4, sStr5);
             }
             #endif
             pSerial->RxState = 0;
@@ -251,10 +265,8 @@ inline void SoftSerial_service_rx(SoftSerial_t *pSerial){
 inline void SoftSerial_service_tx(SoftSerial_t *pSerial){
     // 0 - Idle
     if (!pSerial->TxState){
-        pSerial->TxByte = pSerial->Output[pSerial->TxPos];
-        if (pSerial->TxByte){
-            pSerial->TxPos++;
-        //if (ring_read(pSerial->Output, &(pSerial->TxByte))){
+        
+        if (ring_read(pSerial->Output, &pSerial->TxByte)){
             pSerial->TxState = 1;
         }
         else{
@@ -299,28 +311,25 @@ inline void SoftSerial_service_tx(SoftSerial_t *pSerial){
     }
     // 255 - End
     else {
-        pSerial->TxByte = pSerial->Output[pSerial->TxPos];
-        if (pSerial->TxByte){
-            pSerial->TxPos++;
-            //if (ring_read(pSerial->Output, &(pSerial->TxByte))){
+        if (ring_read(pSerial->Output, &pSerial->TxByte)){
             pSerial->TxState = 1;
         }
-        else {
-            #if LIB_SOFTSERIAL_DEBUG
-            if (pSerial->TxRepeated){
-                pSerial->TxState = 1;
-                pSerial->TxPos   = 0;
-                pSerial->TxByte  = pSerial->Output[0];
-                pSerial->TxPos++;
-            }
-            else{
-                pSerial->TxState = 0;
-                pSerial->TxPos = 0;
-                pSerial->Output[pSerial->TxPos] = 0;
-            }
-            #endif
+        #if LIB_SOFTSERIAL_DEBUG
+        else if (pSerial->TxRepeated){
+            // The ring buffer frees as soon as the character is read, 
+            // so we cannot simply restart the buffer to resend it
+            // Instead we move the pointer to 0 and send whatever until tail
+            // Of course this does not mean it will be in order!
+            // After all this is just for testing...
+            
+            //pSerial->Output->Head = 0;
+            pSerial->TxByte = pSerial->Output->Buffer[0];            
+            pSerial->TxState = 1;
         }
-
+        #endif
+        else{
+            pSerial->TxState = 0;
+        }
     }
 
     #if LIB_SOFTSERIAL_DEBUG
@@ -328,7 +337,7 @@ inline void SoftSerial_service_tx(SoftSerial_t *pSerial){
         if (pSerial->TxTick || pSerial->TxState){
             print("                                       ");
             printf("OUT %u ", MasterClockMS);
-            printf("n=%u S=%u T=%u ", pSerial->TxPos, pSerial->TxState, pSerial->TxTick);
+            printf("S=%u T=%u ", pSerial->TxState, pSerial->TxTick);
             byte2binstr(sStr1, pSerial->TxByte);
             printf("B=%s ", sStr1);
             printf("b=%u\r\n", bit_read(LATB, 2));
@@ -338,12 +347,20 @@ inline void SoftSerial_service_tx(SoftSerial_t *pSerial){
 
 }
 
+inline unsigned char SoftSerial_read(SoftSerial_t *pSerial, unsigned char *pStr, unsigned char nMaxLen){
+    return ring_str(pSerial->Input, pStr, nMaxLen, 1);
+}
+
+inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr){
+    return ring_append(pSerial->Output, pStr);
+}
 
 void SoftSerial_cmd(unsigned char *pArgs){
     bool bOK = true;
     bool bShowStatus = true;
     unsigned char *pArg = NULL;
     unsigned char n          = 0;
+    unsigned char nLen       = 0;
     unsigned char nDataBits  = 0;
     unsigned char nStopBits  = 0;
     unsigned char nBitPeriod = 0;
@@ -377,8 +394,8 @@ void SoftSerial_cmd(unsigned char *pArgs){
             pArg = strtok(pArgs, txtWhitespace); // the "on"
             pArg = strtok(NULL, txtWhitespace);
             if (pArg){
-                SoftSerial.Output[0] = (unsigned char) atoi(pArg);
-                SoftSerial.Output[1] = 0;
+                ring_clear(SoftSerial.Output);
+                ring_write(SoftSerial.Output, (unsigned char) atoi(pArg));
             }
         }
         else if(strequal(pArgs, "dump")){
@@ -389,16 +406,27 @@ void SoftSerial_cmd(unsigned char *pArgs){
                 p++;
             }
             print("\r\nOUT: ");
-            print(SoftSerial.Output);
+            nLen = ring_assert(SoftSerial.Output, sStr5, sizeof(sStr5), true);
+            print(sStr5);
             print(txtCrLf);
-            for (n = 0; n <= sizeSerialOutput; n++){
-                printf(" %02x %c", SoftSerial.Output[n], SoftSerial.Output[n] > 32 ? SoftSerial.Output[n] : '_');
+            for (n = 0; n < nLen; n++){
+                printf(" %02x %c", sStr5[n], sStr5[n] > 32 ? sStr5[n] : '_');
             }
             print("\r\nIN: ");
-            print(SoftSerial.Input);
+            nLen = ring_assert(SoftSerial.Input, sStr5, sizeof(sStr5), true);
+            print(sStr5);
             print(txtCrLf);
-            for (n = 0; n <= 15; n++){
-                printf(" %02x %c", SoftSerial.Input[n], SoftSerial.Input[n] > 32 ? SoftSerial.Input[n] : '_');
+            for (n = 0; n < nLen; n++){
+                printf(" %02x %c", sStr5[n], sStr5[n] > 32 ? sStr5[n] : '_');
+            }
+            print(txtCrLf);
+        }
+        else if(strequal(pArgs, "dumptx")){
+            print("\r\nOUT: ");
+            nLen = SoftSerial.Output->Size;
+            print(txtCrLf);
+            for (n = 0; n < nLen; n++){
+                printf(" %02x %c", SoftSerial.Output->Buffer[n], SoftSerial.Output->Buffer[n] > 32 ? SoftSerial.Output->Buffer[n] : '_');
             }
             print(txtCrLf);
         }
@@ -410,16 +438,8 @@ void SoftSerial_cmd(unsigned char *pArgs){
         SoftSerial.RxState  = 0;
     }
     else if (strequal(pArgs, "on")){
-        SoftSerial_init(&SoftSerial, 'B', 2, 1, 'B', 3, 1);
-        SoftSerial_enable(&SoftSerial, 3, 0, 0, 0);
+        SoftSerial_enable(&SoftSerial, SOFTSERIAL_TX_ENABLED | SOFTSERIAL_RX_ENABLED, 0, 0, 0);
     }
-    /*
-    else if (SoftSerial.TxState){
-        bOK = false;
-        strcpy(sReply, txtErrorBusy);
-        bShowStatus = false;
-    }
-     * */
     else if(pArgs[0] == 'o' && pArgs[1] == 'n' && pArgs[2] == ' '){
         pArg = strtok(pArgs, txtWhitespace); // the "on"
         pArg = strtok(NULL, txtWhitespace);
@@ -435,16 +455,14 @@ void SoftSerial_cmd(unsigned char *pArgs){
             }
         }
         
-        SoftSerial_init(&SoftSerial, 'B', 2, 1, 'B', 3, 1);
-        SoftSerial_enable(&SoftSerial, 3, nDataBits, nStopBits, nBitPeriod);
+        SoftSerial_enable(&SoftSerial, SOFTSERIAL_TX_ENABLED | SOFTSERIAL_RX_ENABLED, nDataBits, nStopBits, nBitPeriod);
     }
     else{
         // We've got text to send
         if (SoftSerial.Status & 1){
-            if (strlen(pArgs) < sizeSerialOutput){
-                strcpy(SoftSerial.Output, pArgs);
+            if (strlen(pArgs) < ring_available(SoftSerial.Output)){
+                ring_append(SoftSerial.Output, pArgs);
                 bShowStatus = false;
-                printf("<%s> %u", SoftSerial.Output, strlen(SoftSerial.Output));
             }
             else {
                 bOK = false;
@@ -459,16 +477,14 @@ void SoftSerial_cmd(unsigned char *pArgs){
     }
     
     if (bShowStatus){
-        sprintf(sReply, "On Tx=%s %u  %u (%c%u%c) Rx=%s %u %u (%c%u%c) %uN%u T=%u OF=%u FR=%u", 
+        sprintf(sReply, "On Tx=%s %u  (%c%u%c) Rx=%s %u (%c%u%c) %uN%u T=%u OF=%u FR=%u", 
             SoftSerial.RxEnabled ? txtOn : txtOff,
             SoftSerial.TxState,
-            SoftSerial.TxPos,
             SoftSerial.TxPort + 'A' - 1,
             SoftSerial.TxPin,
             SoftSerial.TxInvert ? 'i' : 'n',
             SoftSerial.RxEnabled ? txtOn : txtOff,
             SoftSerial.RxState,
-            SoftSerial.RxPos,
             SoftSerial.RxPort + 'A' - 1,
             SoftSerial.RxPin,
             SoftSerial.RxInvert ? 'i' : 'n',

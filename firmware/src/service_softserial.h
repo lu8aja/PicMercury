@@ -34,16 +34,13 @@ typedef struct {
     unsigned char TxState;     // State Machine: 0 = Off / 1 = 
     unsigned char TxTick;      // Time ticker in ms
     unsigned char TxByte;      // Current byte being shifted out
-    unsigned char TxPos;       // Current byte position in buffer
-    unsigned char *Output;     // Output buffer (must be binary safe)
+    ring_t       *Output;      // Output buffer (must be binary safe)
     
     unsigned char RxState;     // State Machine: 0 = Off / 1 = 
     unsigned char RxTick;      // Time ticker in ms
     unsigned char RxByte;      // Current byte being shifted in
     unsigned char RxBit;       // Current bit
-    unsigned char RxPos;       // Current byte position in buffer
-    unsigned char *Input;      // Output buffer (must be binary safe)
-    
+    ring_t       *Input;       // Input buffer (must be binary safe)
     #if LIB_SOFTSERIAL_DEBUG
     unsigned char SyncPort;    // Sync Port (A..E or 1..5)
     unsigned char SyncBit;     // Sync Pin Bit (0..7)
@@ -54,7 +51,15 @@ typedef struct {
 extern SoftSerial_t SoftSerial;
 
 void SoftSerial_init(SoftSerial_t *pSerial, unsigned char nTxPort, unsigned char nTxPin, unsigned char nTxInvert, unsigned char nRxPort, unsigned char nRxPin, unsigned char nRxInvert);
+
 void SoftSerial_enable(SoftSerial_t *pSerial, unsigned char nEnabled, unsigned char nDataBits, unsigned char nStopBits, unsigned char nBitPeriod);
+
 inline void SoftSerial_tick(SoftSerial_t *pSerial);
+
 inline void SoftSerial_service(SoftSerial_t *pSerial);
+
 void SoftSerial_cmd(unsigned char *pArgs);
+
+inline unsigned char SoftSerial_read(SoftSerial_t *pSerial, unsigned char *pStr, unsigned char nMaxLen);
+
+inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr);

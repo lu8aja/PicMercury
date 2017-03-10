@@ -50,7 +50,6 @@ const char txtErrorTooBig[]          = "Argument too big";
 const char txtErrorBusy[]            = "Busy";
 
 
-
 /** VARIABLES ******************************************************/
 /*** MASTER DEBUG ***/
 unsigned char MasterDebug         = 0;     // 
@@ -68,8 +67,7 @@ unsigned int  MasterNotifyCounter = 0;     // Notification timer counter
 unsigned int  MasterNotify        = 60000; // When to notify (1 minute))
 unsigned long MasterNotifyNow     = 0;     // When not 0, the main loop will notify
 
-
-/*** USB buffers ***/
+/*** Buffer sizes ***/
 #define sizeChunk      4
 #define sizeOutput   300
 #define sizeOutUsb   120
@@ -77,6 +75,15 @@ unsigned long MasterNotifyNow     = 0;     // When not 0, the main loop will not
 #define sizeReply    100
 #define sizeStr       17
 
+#define I2C_sizeInput 32
+
+#ifdef DEVICE_PUNCHER
+    #define HEAP_SIZE             100    // Remember that the ring structs themselves waste about 6 bytes
+    #define SOFTSERIAL_sizeOutput 32
+    #define SOFTSERIAL_sizeInput  32
+#endif
+
+/*** Buffers ***/
 unsigned char  bufChunk[sizeChunk];
 unsigned char  bufOutput[sizeOutput + 1];
 unsigned char  bufCommand[sizeCommand]   = "";
@@ -88,17 +95,9 @@ unsigned char  sStr3[sizeStr];
 unsigned char  sStr4[sizeStr];
 unsigned char  sStr5[sizeStr * 4];
 
+/*** Cursors ***/
 unsigned int   posOutput       = 0;
 unsigned char  posCommand      = 0;
 
-/*** Console ***/
-typedef struct {
-	unsigned usb:1;
-	unsigned connected:1;
-	unsigned notify:1;
-	unsigned reportOnce:1;
-	unsigned bufferOverrun:1;
-} console_t;
 
-console_t MasterConsoleStatus = {0, 0, 0, 0, 0};
 
