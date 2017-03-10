@@ -20,6 +20,10 @@
 #include "app_globals.h"
 #include "app_helpers.h"
 #include "app_io.h"
+#include "app_main.h"
+#ifdef LIB_KEYS
+    #include "service_keys.h"
+#endif
 
 #define LIB_MUSIC
 
@@ -318,7 +322,7 @@ void Music_cmd(unsigned char *pArgs){
         }
         sprintf(sReply, "%s %u", pArg1, MasterMusic.pitch);
     }
-   else if (strequal(pArg1, "period")){
+    else if (strequal(pArg1, "period")){
         if (pArg2){
             MasterMusic.period = (unsigned char) iArg2;
         }
@@ -331,6 +335,13 @@ void Music_cmd(unsigned char *pArgs){
             nTime = (unsigned char) atoi(pArg2);
         }
     }
+    #ifdef LIB_KEYS
+    else if (strequal(pArg1, "keys")){
+        Keys_getKeys();
+        iFreq = MasterKeys.Input << 1;
+        nTime = 60; // 1 Minute max
+    }
+    #endif
     else if (strequal(pArg1, "freq")){
         if (pArg2){
             iFreq = iArg2;

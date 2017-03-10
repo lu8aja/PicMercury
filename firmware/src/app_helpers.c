@@ -82,7 +82,7 @@ void putch(const unsigned char byte){
             #endif
 
             #if defined(LIB_LEDS)
-                setbit(MasterLedStatus, LED_ALARM);
+                bit_set(MasterLedStatus, LED_ALARM);
             #endif
             
             //MasterConsoleStatus.bufferOverrun = 1;
@@ -117,7 +117,7 @@ void putch(const unsigned char byte){
             putsUSBUSART("\r\n-ERROR OUTPUT OVERFLOW!\r\n");
             CDCTxService();
             MasterConsoleStatus.bufferOverrun = 1;
-            setbit(MasterLedStatus, LED_ALARM);
+            bit_set(MasterLedStatus, LED_ALARM);
             // Clear buffer entirely
             posOutput = 0;
             bufOutput[posOutput] = 0x00;

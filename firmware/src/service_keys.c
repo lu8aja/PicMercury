@@ -123,17 +123,13 @@ void Keys_checkButtons(void){
     }
     
     for (nBtn = 0; nBtn < MasterButtonsMapLen; nBtn++) {
-        setbit(*MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit);
+        bit_set(*MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit);
         
-        n = readbit(*MasterButtonsMap[nBtn].in_port, MasterButtonsMap[nBtn].in_bit);
-        if (n){
-            setbit(MasterButtons[nBtn].history, MasterKeys.Bit);
-        }
-        else{
-            clearbit(MasterButtons[nBtn].history, MasterKeys.Bit);
-        };
+        n = bit_read(*MasterButtonsMap[nBtn].in_port, MasterButtonsMap[nBtn].in_bit);
         
-        clearbit(*MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit);
+        bit_write(MasterButtons[nBtn].history, MasterKeys.Bit, n);
+        
+        bit_clear(*MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit);
 
         // byte2binstr(sStr5, MasterButtons[nBtn].history);
         // printf("!BTN%u %u %u %s\r\n", nBtn, MasterKeys.Bit, n, sStr5);

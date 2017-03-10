@@ -1,5 +1,6 @@
 #include <xc.h>
 
+#include "app_globals.h"
 
 #define BOARD_XTAL_FREQ 20000000
 
@@ -17,6 +18,14 @@
 #define PIN_KEYS_OUT_2_TRIS TRISEbits.RE2 
 #define PIN_KEYS_OUT_3_TRIS TRISCbits.RC0 
 #define PIN_KEYS_OUT_4_TRIS TRISCbits.RC1
+
+
+#define TTY_TX        TRISBbits.RB2        // TX Pin
+#define SOFTSERIAL_TX_TRIS   TRISBbits.RB2        // TX Tris
+#define TTY_RX        TRISBbits.RB2        // RX Pin
+#define SOFTSERIAL_RX_TRIS   TRISBbits.RB2        // RX Tris
+
+
 
 #define PIN_KEYS_IN      PORTD
 #define PIN_KEYS_IN_TRIS TRISD
@@ -69,6 +78,7 @@ button_status_t MasterButtons[] = {
 };
 
 // First nibble goes to RB5~2 as 1, second nibble goes to RA3~0
+/* No longer used
 #define MasterLedMapLen 16
 const unsigned char MasterLedMap[] = {
                 // n name B5432 A3210,
@@ -89,7 +99,32 @@ const unsigned char MasterLedMap[] = {
     0b01111011, // E B5A2 1000   0100 LED_INHIBIT_PARITY
     0b01110111, // F B5A3 1000   1000 LED_WRITE_CURRENT 
 };
+*/
 
 
 
 
+void pin_write(unsigned char nPort, unsigned char nBit, unsigned char nVal);
+unsigned char pin_read(unsigned char nPort, unsigned char nBit);
+void pin_cfg(unsigned char nPort, unsigned char nBit, unsigned char nDirection);
+
+/*      A   B   C   D   E  
+ TRIS   F92 F93 F94 F95 F96
+ LAT    F89 F8A F8B F8c F8D
+ PORT   F80 F81 F82 F83 F84
+ */
+
+void pin_write(unsigned char nPort, unsigned char nBit, unsigned char nVal){
+    volatile unsigned char *pReg = &LATA - 1 + nPort;
+    bit_write(*pReg, nBit, nVal);
+}
+
+unsigned char pin_read(unsigned char nPort, unsigned char nBit){
+    volatile unsigned char *pReg = &PORTA - 1 + nPort;
+    return bit_read(*pReg, nBit);
+}
+
+void pin_cfg(unsigned char nPort, unsigned char nBit, unsigned char nDirection){
+    volatile unsigned char *pReg = &TRISA - 1 + nPort;
+    bit_write(*pReg, nBit, nDirection);
+}

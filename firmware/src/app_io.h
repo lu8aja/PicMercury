@@ -66,5 +66,11 @@ typedef struct {
 #define MasterButtonsLen 3
 extern button_status_t MasterButtons[];
 
+/*
 #define MasterLedMapLen 16
 extern const unsigned char MasterLedMap[];
+*/
+
+void pin_write(unsigned char nPort, unsigned char nBit, unsigned char nVal);
+unsigned char pin_read(unsigned char nPort, unsigned char nBit);
+void pin_cfg(unsigned char nPort, unsigned char nBit, unsigned char nDirection);

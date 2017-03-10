@@ -30,7 +30,8 @@
 // Optional libraries with associated commands
 
 #if defined(DEVICE_PUNCHER)
-    #include "service_puncher.h"   // Puncher library with associated PUNCH cmd
+    #include "service_puncher.h"    // Puncher library with associated PUNCH cmd
+    #include "service_softserial.h" // TTY 5N1
 #endif
 
 #if defined(DEVICE_CONSOLE)
@@ -140,28 +141,33 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
             // MASTER CLOCK MS
             MasterClockMS++;
             
+            // SOFT SERIAL ms tick
+            #ifdef LIB_SOFTSERIAL
+                SoftSerial_tick(&SoftSerial);
+            #endif
+
             // MUSIC ms beat
-            #if defined(LIB_MUSIC)
-            Music_beat();
+            #ifdef LIB_MUSIC
+                Music_beat();
             #endif
 
             // KEYS ms tick
-            #if defined(LIB_KEYS)
+            #ifdef LIB_KEYS
                 Keys_tick();
             #endif
             
             // LEDS ms tick
-            #if defined(LIB_LEDS)
+            #ifdef LIB_LEDS
                 Leds_tick();
             #endif
             
             // PUNCHER ms tick
-            #if defined(LIB_PUNCHER)
+            #ifdef LIB_PUNCHER
                 Puncher_tick();
             #endif
                             
             // PROGRAM ms tick
-            #if defined(LIB_PROGRAM)
+            #ifdef LIB_PROGRAM
                 Program_tick();
             #endif
 
@@ -205,26 +211,32 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
 }
 
 void APP_main(){
-    #if defined(LIB_MUSIC)
+    
+    #ifdef LIB_SOFTSERIAL
+        SoftSerial_service(&SoftSerial);
+    #endif
+
+    
+    #ifdef LIB_MUSIC
     if (MasterMusic.enabled){
         Music_service();
     }
     #endif
     
-    #if defined(LIB_PUNCHER)
-    if (MasterPuncher.enabled && !MasterPuncher.tick){
+    #ifdef LIB_PUNCHER
+    if (MasterPuncher.Enabled && !MasterPuncher.Tick){
         Puncher_service();
     }
     #endif
 
     
-    #if defined(LIB_KEYS)
+    #ifdef LIB_KEYS
     if (MasterKeys.Enabled){
         Keys_service();
     }
     #endif    
     
-    #if defined(LIB_LEDS)
+    #ifdef LIB_LEDS
         Leds_service();
     #endif
 
@@ -235,23 +247,23 @@ void APP_main(){
     }
     
     // Program
-    #if defined(LIB_PROGRAM)
+    #ifdef LIB_PROGRAM
         Program_service();
     #endif
                 
     // Monitor
-    #if defined(LIB_MONITOR)
+    #ifdef LIB_MONITOR
         Monitor_service();
     #endif
     
     // UART
-    #if defined(LIB_UART)
+    #ifdef LIB_UART
         UART_service();
     #endif
 
     // I2C
-    #if defined(LIB_I2C)
-        #if defined(DEVICE_CONSOLE)
+    #ifdef LIB_I2C
+        #ifdef DEVICE_CONSOLE
             //I2C_Master_service();
         #else
             I2C_Slave_service();
@@ -378,7 +390,13 @@ void APP_executeCommand(unsigned char *pLine){
         APP_CMD_dump(ptrArgs);
     }
      * */
-    
+
+    #ifdef LIB_SOFTSERIAL
+    else if (strequal(ptrCommand, "serial")){
+        SoftSerial_cmd(ptrArgs);
+    }
+    #endif
+
     // UART
     else if (strequal(ptrCommand, "uart")){
 //        MasterSerialOut = (unsigned char) atoi(ptrArgs);
@@ -395,37 +413,37 @@ void APP_executeCommand(unsigned char *pLine){
     }
     #endif
     // I2C
-    #if defined(LIB_I2C)
+    #ifdef LIB_I2C
     else if (strequal(ptrCommand, "i2c")){
         I2C_cmd(ptrArgs);
     }
     #endif
     // MONITOR
-    #if defined(LIB_MONITOR)
+    #ifdef LIB_MONITOR
     else if (strequal(ptrCommand, "monitor")){
         Monitor_cmd(ptrArgs);
     }
     #endif
     // LED
-    #if defined(LIB_LEDS)
+    #ifdef LIB_LEDS
     else if (strequal(ptrCommand, "led") || strequal(ptrCommand, "l")){
         Leds_cmd(ptrArgs);
     }
     #endif
     // KEYS
-    #if defined(LIB_KEYS)
+    #ifdef LIB_KEYS
     else if (strequal(ptrCommand, "keys")){
         Keys_cmd(ptrArgs);
     }
     #endif
     // MUSIC
-    #if defined(LIB_MUSIC)
+    #ifdef LIB_MUSIC
     else if (strequal(ptrCommand, "music") || strequal(ptrCommand, "tone") || strequal(ptrCommand, "t")){
         Music_cmd(ptrArgs);
     }
     #endif
     // PUNCH
-    #if defined(LIB_PUNCHER)
+    #ifdef LIB_PUNCHER
     else if (strequal(ptrCommand, "punch")){
         Puncher_cmd(ptrArgs);
     }

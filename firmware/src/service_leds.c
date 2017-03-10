@@ -83,8 +83,8 @@ void Leds_cmd(unsigned char *pArgs);
 inline void Leds_init(void){
     // Configs
     MasterLeds.Enabled    = 1;
-    MasterLeds.Time       = 3;   // Ticks in ms to count while flashing led
-    MasterLeds.StepEnabled= 1;     // 0 = Off / 1 = On
+    MasterLeds.Time       = 10;    // Ticks in ms to count while flashing led
+    MasterLeds.StepEnabled= 0;     // 0 = Off / 1 = On
     MasterLeds.StepRestart= 1;     // 0 = Disable when Time is reached / 1 = Restart 
     MasterLeds.StepTime   = 1500;  // Time in ms for each step
     // Runtime
@@ -144,14 +144,68 @@ inline void Leds_service(void){
 }
 
 void Leds_updateLeds(void){
-    // Note: We start with 15 just because that led is the only one which does not exist
+    // This function turns on at most 4 leds at a time
+    // This implies that worst case leds are turned on on a 1/4 duty cycle
+    static unsigned char nCurrentAnode = 8;
+    static unsigned char nCurrentShift = 12;
+    
+    if (!MasterLeds.Status){
+        // No leds on, then switch all pins to 3rd state
+        LEDS_CATHODES_TRIS |= LEDS_CATHODES;
+        LEDS_ANODES_TRIS   |= LEDS_ANODES;
+        return;
+    }
+
+    // Note: Leds normally change upon commands, but occasionally might form 
+    // interrupts that happen between the first nonzero check and the loop.
+    // Variable n ensures that at most 4 (one entire led loop) is tried, and no more.
+    // It could have been avoided if we ensured from interrupt logic that a zero MasterLeds.Status
+    // would be impossible to arrive to this point (however that was a major potential point of failure))
+    unsigned char nCathodes;
+    unsigned char n = 4;
+    do {
+        n--;
+        nCurrentAnode  = nCurrentAnode >> 1;
+        if (!nCurrentAnode){
+            nCurrentAnode = 8;
+            nCurrentShift = 12;
+        }
+        else{
+            nCurrentShift -= 4;
+        }
+        nCathodes = (MasterLeds.Status >> nCurrentShift) & 0x0f;
+    }
+    while (!nCathodes && !n);
+    
+    // Make sure we do not disturb other A or B pins
+    LEDS_CATHODES_TRIS = (LEDS_CATHODES_TRIS & ~LEDS_CATHODES) | ~nCathodes;
+    LEDS_ANODES_TRIS   = (LEDS_ANODES_TRIS   & ~LEDS_ANODES)   | ~(nCurrentAnode << LEDS_ANODES_SHIFT);
+
+    LEDS_CATHODES_LAT &= ~LEDS_CATHODES; // We always force a 0 on A (Cathode)
+    LEDS_ANODES_LAT   |= LEDS_ANODES;    // We always force a 1 on B (Anode)
+
+    /*
+    byte2binstr(sStr1, nCathodes);
+    byte2binstr(sStr2, LEDS_CATHODES_TRIS);
+    byte2binstr(sStr3, LEDS_ANODES_TRIS);
+    
+    printf("\r\n!OK LED A=%u K=%s TK=%s TA=%s\r\n", nCurrentAnode, sStr1, sStr2, sStr3);
+    */
+}
+
+/*
+void Leds_updateLeds_original(void){
+    // This function turns on at most 1 led at a time
+    // This implies that worst case leds are turned on on a 1/16 duty cycle
+    // This resulted in flickering and high update rates, so it was deprectaed
+
     static unsigned char nCurrentLed = 15;
-                                      //FEDCBA9876543210 
+                                       //FEDCBA9876543210 
     static unsigned int  iCurrentBit = 0b0000000100000000;
      
     unsigned char nInitialLed;
-    unsigned char nTrisB;
-    unsigned char nTrisA;
+    //unsigned char nTrisB;
+    //unsigned char nTrisA;
      
     if (!MasterLeds.Status){
         // No leds on, then switch all pins to 3rd state
@@ -179,13 +233,14 @@ void Leds_updateLeds(void){
         LEDS_ANODES_TRIS   = (LEDS_ANODES_TRIS   & ~LEDS_ANODES)   | ((MasterLedMap[nCurrentLed] >> LEDS_ANODES_SHIFT  ) & LEDS_ANODES);
 
         LEDS_CATHODES_LAT &= ~LEDS_CATHODES; // We always force a 0 on A (Cathode)
-        LEDS_ANODES_LAT   |= LEDS_ANODES; // We always force a 1 on B (Anode)
+        LEDS_ANODES_LAT   |= LEDS_ANODES;    // We always force a 1 on B (Anode)
     }
 
     //if (MasterDebug > 2) printf("\r\n!OK LED %d on\r\n", nCurrentLed);
 
     // If the led is the same one, we do not do anything as everything should already be set
 }
+ * */
 
 
 void Leds_cmd(unsigned char *pArgs){
@@ -209,14 +264,11 @@ void Leds_cmd(unsigned char *pArgs){
     }
     else if(strlen(pArg1) == 1) {
         nLed = (unsigned char) strtol(pArg1, NULL, 16);
+        iBit = 0;
         if (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0){
-            setbit(MasterLeds.Status, nLed);
             iBit = 1;
         }
-        else{
-            clearbit(MasterLeds.Status, nLed);
-            iBit = 0;
-        }
+        bit_write(MasterLeds.Status, nLed, iBit);
         sprintf(sReply, "%d %s", nLed, iBit ? txtOn : txtOff);
     }
     else if (strlen(pArg1) == 0){
@@ -243,7 +295,7 @@ void Leds_updateUsb(void){
     static uint16_t ledCount = 0;
 
     if(USBIsDeviceSuspended() == true){
-        clearbit(MasterLeds.Status, LED_USB);
+        bit_clear(MasterLeds.Status, LED_USB);
         return;
     }
 
@@ -251,10 +303,10 @@ void Leds_updateUsb(void){
         case CONFIGURED_STATE:
             /* We are configured.  Blink fast. On for 75ms, off for 75ms, then reset/repeat. */
             if(ledCount == 1){
-                setbit(MasterLeds.Status, LED_USB);
+                bit_set(MasterLeds.Status, LED_USB);
             }
             else if(ledCount == 75){
-                clearbit(MasterLeds.Status, LED_USB);
+                bit_clear(MasterLeds.Status, LED_USB);
             }
             else if(ledCount > 150){
                 ledCount = 0;
@@ -264,10 +316,10 @@ void Leds_updateUsb(void){
             /* We aren't configured yet, but we aren't suspended so let's blink with
              * a slow pulse. On for 50ms, then off for 950ms, then reset/repeat. */
             if(ledCount == 1){
-                setbit(MasterLeds.Status, LED_USB);
+                bit_set(MasterLeds.Status, LED_USB);
             }
             else if(ledCount == 50){
-                clearbit(MasterLeds.Status, LED_USB);
+                bit_clear(MasterLeds.Status, LED_USB);
             }
             else if(ledCount > 950){
                 ledCount = 0;

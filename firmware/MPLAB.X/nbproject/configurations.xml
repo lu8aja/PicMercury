@@ -46,6 +46,7 @@
       <itemPath>../src/service_leds.h</itemPath>
       <itemPath>../src/service_music.h</itemPath>
       <itemPath>../src/service_program.h</itemPath>
+      <itemPath>../src/service_softserial.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -79,6 +80,7 @@
       <itemPath>../src/service_music.c</itemPath>
       <itemPath>../src/service_leds.c</itemPath>
       <itemPath>../src/service_program.c</itemPath>
+      <itemPath>../src/service_softserial.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

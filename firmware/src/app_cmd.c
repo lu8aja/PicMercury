@@ -114,12 +114,12 @@ void APP_CMD_read(unsigned char *pArgs){
             // Single pin
             if (pArgs[1] >= '0' && pArgs[1] <= nMax){
                 nBit = pArgs[1] - 48;
-                setbit(*pTris, nBit);
+                bit_set(*pTris, nBit);
                 
                 sReply[0] = pArgs[0];
                 sReply[1] = pArgs[1];
                 sReply[2] = '=';
-                sReply[3] = readbit(*pPort, nBit) + 48;
+                sReply[3] = bit_read(*pPort, nBit) + 48;
                 sReply[4] = 0;
             }
             else {
@@ -190,7 +190,7 @@ void APP_CMD_write(unsigned char *pArgs){
             // Single pin
             if (pArgs[1] >= '0' && pArgs[1] <= nMax){
                 nBit = pArgs[1] - 48;
-                clearbit(*pTris, nBit);
+                bit_clear(*pTris, nBit);
                 
                 sReply[0] = pArg1[0];
                 sReply[1] = pArg1[1];
@@ -198,11 +198,11 @@ void APP_CMD_write(unsigned char *pArgs){
                 sReply[4] = 0;
 
                 if (strequal(pArg2, "ON") || strequal(pArg2, "1")){
-                    setbit(*pPort, nBit);
+                    bit_set(*pPort, nBit);
                     sReply[3] = '1';
                 }
                 else{
-                    clearbit(*pPort, nBit);
+                    bit_clear(*pPort, nBit);
                     sReply[3] = '0';
                 }
             }

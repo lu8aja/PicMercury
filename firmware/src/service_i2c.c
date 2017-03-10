@@ -1,3 +1,10 @@
+
+/*
+ * Loosely based on https://electrosome.com/i2c-pic-microcontroller-mplab-xc8/
+ * More info: https://www.i2c-bus.org/
+ */
+
+
 #include <xc.h>
 #include <ctype.h>
 #include <stdio.h>
