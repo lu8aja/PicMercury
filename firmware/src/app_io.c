@@ -43,9 +43,9 @@
 #define LED_USB    0x0f
 #define LED_ALARM  0x00
 
-#define I2C_ADDRESS_PUNCHER 2
-#define I2C_ADDRESS_READER  4
-#define I2C_ADDRESS_CRTS    8
+#define CFG_I2C_ADDRESS_PUNCHER 2
+#define CFG_I2C_ADDRESS_READER  4
+#define CFG_I2C_ADDRESS_CRTS    8
 
 #define INPUT   1
 #define OUTPUT  0

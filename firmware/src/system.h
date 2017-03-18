@@ -20,30 +20,62 @@
  CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
  *******************************************************************/
 
-#ifndef BSP_POWER_H
-#define BSP_POWER_H
+#ifndef SYSTEM_H
+#define SYSTEM_H
 
-/** Type defintions *********************************/
-typedef enum
-{
-    POWER_SOURCE_USB,
-    POWER_SOURCE_MAINS
-} POWER_SOURCE;
+#include <xc.h>
+#include <stdbool.h>
 
+//#include "usb_config.h"
+#define MAIN_RETURN void
+
+// Is this used at all??
+#ifndef FIXED_MEMORY_ADDRESS_H
+    #define FIXED_MEMORY_ADDRESS_H
+    #define FIXED_ADDRESS_MEMORY
+    #define IN_DATA_BUFFER_ADDRESS_TAG      @0x500
+    #define OUT_DATA_BUFFER_ADDRESS_TAG     @0x540
+    #define CONTROL_BUFFER_ADDRESS_TAG      @0x580
+#endif //FIXED_MEMORY_ADDRESS
+
+
+
+
+
+/*** System States **************************************************/
+typedef enum {
+    SYSTEM_STATE_USB_START,
+    SYSTEM_STATE_USB_SUSPEND,
+    SYSTEM_STATE_USB_RESUME
+} SYSTEM_STATE;
 
 /*********************************************************************
-* Function: POWER_SOURCE POWER_SourceGet(void)
+* Function: void SYSTEM_Initialize( SYSTEM_STATE state )
 *
-* Overview: Gets the current source of power for the board
+* Overview: Initializes the system.
 *
 * PreCondition: None
 *
-* Input: None
+* Input:  SYSTEM_STATE - the state to initialize the system into
 *
-* Output: POWER_SOURCE - the current source of power for the board
+* Output: None
 *
 ********************************************************************/
-POWER_SOURCE POWER_SourceGet(void);
-#define POWER_SourceGet() POWER_SOURCE_MAINS
+void SYSTEM_Initialize( SYSTEM_STATE state );
 
-#endif //BSP_POWER_H
+/*********************************************************************
+* Function: void SYSTEM_Tasks(void)
+*
+* Overview: Runs system level tasks that keep the system running
+*
+* PreCondition: System has been initalized with SYSTEM_Initialize()
+*
+* Input: None
+*
+* Output: None
+*
+********************************************************************/
+//void SYSTEM_Tasks(void);
+#define SYSTEM_Tasks()
+
+#endif //SYSTEM_H

@@ -7,7 +7,7 @@
 
 // 
 
-#define BOARD_XTAL_FREQ 20000000
+#define CFG_BOARD_XTAL_FREQ 20000000
 
 /*** KEYS Related ***/
     #define PIN_HOOT_OUT  LATCbits.LATC2
@@ -70,21 +70,22 @@
     */
 
 /*** I2C Related ***/
-    #define I2C_ADDRESS_PUNCHER 2
-    #define I2C_ADDRESS_READER  4
-    #define I2C_ADDRESS_CRTS    8
+    #define CFG_I2C_ADDRESS_PUNCHER 2
+    #define CFG_I2C_ADDRESS_READER  4
+    #define CFG_I2C_ADDRESS_CRTS    8
 
 /*** SoftSerial Related ***/
-    #define SOFTSERIAL_TX_Port    'B'
-    #define SOFTSERIAL_TX_Pin      5
-    #define SOFTSERIAL_TX_Invert   1
-    #define SOFTSERIAL_RX_Port    'B'
-    #define SOFTSERIAL_RX_Pin      4
-    #define SOFTSERIAL_RX_Invert   1
-    #define SOFTSERIAL_RX_DataBits 5
-    #define SOFTSERIAL_RX_StopBits 1
-    #define SOFTSERIAL_RX_Period   20
-
+    #define CFG_SOFTSERIAL_TX_Port    'B'
+    #define CFG_SOFTSERIAL_TX_Pin      5
+    #define CFG_SOFTSERIAL_TX_Invert   1
+    #define CFG_SOFTSERIAL_RX_Port    'B'
+    #define CFG_SOFTSERIAL_RX_Pin      4
+    #define CFG_SOFTSERIAL_RX_Invert   1
+    #define CFG_SOFTSERIAL_RX_DataBits 5
+    #define CFG_SOFTSERIAL_RX_StopBits 1
+    #define CFG_SOFTSERIAL_RX_Period   20
+    #define CFG_SOFTSERIAL_HalfDuplex  1
+    #define CFG_SOFTSERIAL_Transcode   3
 /*** Misc ***/
 
 #define INPUT   1

@@ -47,8 +47,8 @@ please contact mla_licensing@microchip.com
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "system.h"
-#include "system_config.h"
+#include "../system.h"
+#include "../usb_config.h"
 
 // *****************************************************************************
 // *****************************************************************************

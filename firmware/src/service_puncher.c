@@ -11,58 +11,23 @@
 #include "app_globals.h"
 #include "app_helpers.h"
 
-#define LIB_PUNCHER
+#include "service_puncher.h"
 
-#define PUNCHER_TRIS TRISD        // Port tris
-#define PUNCHER_LAT  LATD         // Port latch
-#define PUNCHER_BIT_ADVANCE  0b01000000 // Bitmask for advancing the paper
-#define PUNCHER_BIT_GUIDE    0b00100000 // Bitmask for the guide hole
-#define PUNCHER_MASK_DATA    0b00011111 // Data mask
-#define PUNCHER_MASK_SHIFT   0b00100000 // Shift mask (used for mode 1))
-#define PUNCHER_MASK_NONZERO 0b10000000 // Used as flag in conversions
-
-#define PUNCHER_ITA_LTRS     0b00011111 // 
-#define PUNCHER_ITA_FIGS     0b00011011 // 
-#define PUNCHER_ITA_NULL     0b00000000 // 
-
-#define PUNCHER_BUFFER_SIZE 16
-
-//                                  00   000000   0000000011111111111   1111   1     22 222 222 222 222223 3333333333   3333   3
-//                                  01   234567   89abcdef0123456789a   bcde   f     01 234 567 89a bcdef0 123456789a   bcde   f  
-//const unsigned char txtITA2[] = "\x00E\x0aA SIU\x0dDRJNFCKTZLWHYPQOBG\x0fMXV\x0e" "\x003\n- \'87\r$4\a,!:(5\")2#6019?&\x0f./;\x0e";
-
-const unsigned char txtITA2[] = {0,'E',0x0a,'A',' ','S','I','U',0x0d,'D','R','J','N','F','C','K','T','Z','L','W','H','Y','P','Q','O','B','G',0x0f,'M','X','V',0x0e,0x00,'3',0x0a,'-',' ','\'','8','7','\r','$','4','\a',',','!',':','(','5','\"',')','2','#','6','0','1','9','?','&',0x0f,'.','/',';',0x0e};
-
-
-unsigned char Puncher_Buffer[PUNCHER_BUFFER_SIZE];
-
-
-typedef struct {
-    unsigned char Enabled;     // 0 = Off / 1 = On
-    unsigned char Mode;        // Mode Bitfield Bit0 = 0:Direct / 1:shifted | Bit1 = 1:ASCII | Bit2 = 4:HEX
-    unsigned char Shift;       // Mode 1 Shift: 0 = LTRS / 1 = FIGS
-    unsigned char State;       // State Machine: 0 = Off / 1 = 
-    unsigned char TimePunch;   // Time in ms to punch the holes
-    unsigned char TimeGap1;    // Time in ms between punch and advance
-    unsigned char TimeAdvance; // Time in ms to advance the paper
-    unsigned char TimeGap2;    // Time in ms to rest before next command
-    
-    unsigned char Tick;        // Time ticker in ms
-    unsigned char *Output;     // Output buffer (must be binary safe))
-    unsigned char Len;         // Output buffer counter n..0
-} puncher_t;
-
-puncher_t MasterPuncher = {0,0,0,0,0,0,0,0,0,0,0};
+Puncher_t MasterPuncher = {0,0,0,0,0,0,0,0};
 
 void Puncher_init(unsigned char bEnabled, unsigned char nMode){
-    MasterPuncher.Tick         = 0;
+    MasterPuncher.State       = 0;
+    MasterPuncher.Tick        = 0;
     MasterPuncher.TimePunch   = 30;
     MasterPuncher.TimeGap1    = 15;
     MasterPuncher.TimeAdvance = 60;
     MasterPuncher.TimeGap2    = 5;
-    MasterPuncher.Mode         = nMode;
-    MasterPuncher.Shift        = 0;
-    MasterPuncher.State        = 0;
+    
+    MasterPuncher.Output       = Transcoder_new(PUNCHER_BUFFER_SIZE);
+    MasterPuncher.Output->Configs = nMode;
+    
+    PUNCHER_TRIS = 0;
+    
     MasterPuncher.Enabled      = bEnabled;
 }
 
@@ -77,162 +42,71 @@ void Puncher_service(void){
     unsigned char cOut;
     unsigned char bAdv;
     
-    if (MasterPuncher.State && !MasterPuncher.Tick){
-        if (MasterPuncher.State == 1){
-            if (!MasterPuncher.Len){
-                // Error: Trying to punch an empty buffer
-                MasterPuncher.State = 254;
-                return;
-            }
-            MasterPuncher.State = 2;
+    if (MasterPuncher.Tick){
+        return;
+    }
+    
+    // 0 - Idle
+    if (MasterPuncher.State == 0){
+        if (ring_is_empty(MasterPuncher.Output->Ring)){
+            return;
         }
-        
-        if (MasterPuncher.State == 2){
-putch('%');
-            bAdv = 1;
-            // Mode4 = HEX
-            if (MasterPuncher.Mode & 0x04){
-                // With HEX conversion
-                cOut = hexstr2byte(MasterPuncher.Output);
-                // In this mode we need 2 advances instead of just one
-                if (MasterPuncher.Len > 1){
-                    MasterPuncher.Len--;
-                    MasterPuncher.Output++;
-                }
-putch('x');
-putch('=');
-byte2binstr(sStr1, cOut);
-print(sStr1);
-putch(' ');
-            }
-            else{
-                // Direct
-                cOut = *MasterPuncher.Output;
-            }
-            
-            // Mode2/3 = ASCII
-            if (MasterPuncher.Mode & 2){
-                // With ASCII -> ITA2+shift conversion
-                cIn = toupper(cOut);
-putch(cIn);
-                // Find the corresponding ITA2 for the given ASCII
-                for (cOut = 0; cOut < 65; cOut++){
-                    if (cOut == 64){
-                        // Not found
-                        cOut = MasterPuncher.Shift ? PUNCHER_MASK_SHIFT : 0;
-                        break;
-                    }
-                    // The search order is determined by the current shift
-                    if (MasterPuncher.Shift){
-                        if (txtITA2[63 - cOut] == cIn){
-                            cOut = 63 - cOut;
-                            break;
-                        }
-                    }
-                    else{
-                        if (txtITA2[cOut] == cIn){
-                            break;
-                        }
-                    }
-                }
-                cOut |= PUNCHER_MASK_NONZERO; // Add flag to avoid Mode0
-putch('i');
-putch('=');
-byte2binstr(sStr1, cOut);
-print(sStr1);
-putch(' ');
-            }
-            
-            // Mode1 = ITA2+shift -> ITA2
-            // Shift calc (used for both Mode1 and Mode2))
-            if (MasterPuncher.Mode & 1){
-                // 5 bit + Shift flag
-                if (cOut & PUNCHER_MASK_SHIFT){
-                    // Got FIGS
-                    if (!MasterPuncher.Shift){
-                        // Must switch to figs first
-                        cOut = PUNCHER_ITA_FIGS;
-                        MasterPuncher.Shift = 1;
-                        bAdv = 0;
-                    }
-                }
-                else{
-                    // Got LTRS
-                    if (MasterPuncher.Shift){
-                        // Must switch to ltrs first
-                        cOut = PUNCHER_ITA_LTRS;
-                        MasterPuncher.Shift = 0;
-                        bAdv = 0;
-                    }
-                }
-            }
-            
-            // If there was a shift conversion then we have to stay without updating the pointer
-            if (bAdv){
-                MasterPuncher.Len--;
-                MasterPuncher.Output++;
-            }
+        MasterPuncher.State = 1;
+    }
+    
+    PUNCHER_TRIS = 0;
+    
+    // 1 - Punch
+    if (MasterPuncher.State == 1){
+         if (!Transcoder_read(MasterPuncher.Output, &cOut)){
+             // Nothing to punch, strange, this should not have happened!!
+             // Back to idle
+             MasterPuncher.State = 0;
+             return;
+         }
 
-            // Deal with physical outputs now, limit data bits and add guide            
-            PUNCHER_TRIS = 0;
-            PUNCHER_LAT  = (cOut & PUNCHER_MASK_DATA) | PUNCHER_BIT_GUIDE;
-putch('>');
-putch('=');
-byte2binstr(sStr1, PUNCHER_LAT);
-print(sStr1);
-putch('\r');
-putch('\n');
-            MasterPuncher.State = 3;
-            MasterPuncher.Tick  = MasterPuncher.TimePunch;
-        }
-        else if (MasterPuncher.State == 3){
-            PUNCHER_TRIS = 0;
-            PUNCHER_LAT  = 0;
-            MasterPuncher.State = 4;
-            MasterPuncher.Tick  = MasterPuncher.TimeGap1;
-        }
-        else if (MasterPuncher.State == 4){
-            PUNCHER_TRIS = 0;
-            PUNCHER_LAT  = PUNCHER_BIT_ADVANCE;
-            MasterPuncher.State = 5;
-            MasterPuncher.Tick  = MasterPuncher.TimeAdvance;
-        }
-        else if (MasterPuncher.State == 5){
-            PUNCHER_TRIS = 0;
-            PUNCHER_LAT  = 0;
-            MasterPuncher.State = 6;
-            MasterPuncher.Tick  = MasterPuncher.TimeGap2;
-        }
-        else if (MasterPuncher.State == 6){
-            if (MasterPuncher.Len){
-                MasterPuncher.State = 2;
-            }
-            else{
-                MasterPuncher.State = 0;
-            }
-        }
+        // Deal with physical outputs now, limit data bits and add guide            
+        PUNCHER_LAT  = (cOut & TRANSCODER_MASK_DATA) | PUNCHER_BIT_GUIDE;
+
+        // Debug
+        //byte2binstr(sStr1, PUNCHER_LAT);
+        //printf("> %s\r\n", sStr1);
+        
+        MasterPuncher.State++;
+        MasterPuncher.Tick  = MasterPuncher.TimePunch;
+    }
+    // 2 - Gap 1
+    else if (MasterPuncher.State == 2){
+        PUNCHER_LAT  = 0;
+        MasterPuncher.State++;
+        MasterPuncher.Tick  = MasterPuncher.TimeGap1;
+    }
+    // 3 - Advance
+    else if (MasterPuncher.State == 3){
+        PUNCHER_LAT  = PUNCHER_BIT_ADVANCE;
+        MasterPuncher.State++;
+        MasterPuncher.Tick  = MasterPuncher.TimeAdvance;
+    }
+    // 4 - Gap 2
+    else if (MasterPuncher.State == 4){
+        PUNCHER_LAT  = 0;
+        MasterPuncher.State++;
+        MasterPuncher.Tick  = MasterPuncher.TimeGap2;
+    }
+    // 5 - Done
+    else if (MasterPuncher.State == 5){
+        MasterPuncher.State = 0;
     }
 }
 
 
-unsigned char Puncher_write(unsigned char *buff, unsigned char len){
+
+inline unsigned char Puncher_write(unsigned char *pStr){
     if (!MasterPuncher.Enabled){
         // Error: puncher disabled
-        return 255;
+        return 0;
     }
-    if (MasterPuncher.State){
-        // Error: Puncher busy
-        return MasterPuncher.State;
-    }
-    MasterPuncher.Len    = len ? len : strlen(buff);
-    if (!MasterPuncher.Len){
-        // Error: Trying to punch an empty buffer
-        return 254;
-    }
-    
-    MasterPuncher.Output = buff;
-    MasterPuncher.State  = 1;
-    return 0;
+    return ring_append(MasterPuncher.Output->Ring, pStr);
 }
 
 
@@ -251,40 +125,38 @@ void Puncher_cmd(unsigned char *pArgs){
     pArg1 = strtok(pArgs, txtWhitespace);
     
     if (strequal(pArg1, "send")){
-        if (MasterPuncher.State){
+        n = strlen(pArg1 + 5);
+        if (!n){
             bOK = false;
-            strcat(sReply, txtErrorBusy);
+            strcpy(sReply, txtErrorInvalidArgument);
         }
-        else {
-            n = strlen(pArg1 + 5);
-            if (n < PUNCHER_BUFFER_SIZE){
-                strcpy(Puncher_Buffer, pArg1 + 5);
-                MasterPuncher.Enabled = 1;
-                m = Puncher_write(Puncher_Buffer, n);
-                if (m){
-                    bOK = false;
-                    strcat(sReply, txtErrorBusy);
-                }
-                else{
-                    sprintf(sReply, "%u + %u + %u + %u = %u (%u)\r\n",
-                        MasterPuncher.TimePunch,
-                        MasterPuncher.TimeGap1,
-                        MasterPuncher.TimeAdvance,
-                        MasterPuncher.TimeGap2,
-                        (MasterPuncher.TimePunch + MasterPuncher.TimeGap1 + MasterPuncher.TimeAdvance + MasterPuncher.TimeGap2),
-                        n
-                    );
-                }
+        else if (n > ring_available(MasterPuncher.Output->Ring)){
+            bOK = false;
+            strcpy(sReply, txtErrorTooBig);
+        }
+        else{
+            MasterPuncher.Enabled = 1;
+            m = Puncher_write(pArg1 + 5);
+            if (m){
+                sprintf(sReply, "%u + %u + %u + %u = %u (%u)\r\n",
+                    MasterPuncher.TimePunch,
+                    MasterPuncher.TimeGap1,
+                    MasterPuncher.TimeAdvance,
+                    MasterPuncher.TimeGap2,
+                    (MasterPuncher.TimePunch + MasterPuncher.TimeGap1 + MasterPuncher.TimeAdvance + MasterPuncher.TimeGap2),
+                    n
+                );
             }
-            else {
+            else{
                 bOK = false;
-                strcat(sReply, txtErrorTooBig);
+                strcpy(sReply, txtErrorBusy);
             }
         }
+
     }
     else{
         if (strequal(pArg1, "mode")){
-            pVal = &MasterPuncher.Mode;
+            pVal = &MasterPuncher.Output->Configs;
         }
         else if (strequal(pArg1, "time_punch")){
             pVal = &MasterPuncher.TimePunch;
@@ -308,7 +180,7 @@ void Puncher_cmd(unsigned char *pArgs){
         }
         else{
             bOK = false;
-            strcat(sReply, txtErrorInvalidArgument);
+            strcpy(sReply, txtErrorInvalidArgument);
         }
     }
     

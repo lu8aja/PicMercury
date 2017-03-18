@@ -7,8 +7,8 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "usb.h"
-#include "usb_device_cdc.h"
+#include "usb/usb.h"
+#include "usb/usb_device_cdc.h"
 
 #include "app_globals.h"
 #include "app_main.h"
@@ -34,14 +34,19 @@ inline void   str2lower(unsigned char *pStr);
 inline void   str2upper(unsigned char *pStr);
 void          byte2binstr(char *sStr, unsigned char iNum);
 void          int2binstr(char *sStr, unsigned int iNum);
+
+unsigned long Clock_getTime(void);
 void          clock2str(char *sStr, unsigned long ms);
 void          any2binstr(char *sStr, unsigned long iNum, unsigned char nLen);
 unsigned char hexstr2byte(unsigned char *sStr);
 unsigned char hex2byte(unsigned char c);
 
+inline void   str_append(unsigned char *pStr, unsigned char cChar);
+void          str_append_safe(unsigned char *pStr, unsigned char cChar, unsigned char nMaxlen);
+
 // EEPROM
-unsigned char read_eeprom(unsigned char addr);
-void          write_eeprom(unsigned char addr, unsigned char val);
+unsigned char EEPROM_read(unsigned char addr);
+void          EEPROM_write(unsigned char addr, unsigned char val);
 
 
 
@@ -78,7 +83,7 @@ void putch(const unsigned char byte){
         if (posOutput >= sizeOutput){
             
             #if defined(LIB_MUSIC)
-            Music_setSingleTone(6, 16);
+                Music_setSingleTone(6, 16);
             #endif
 
             #if defined(LIB_LEDS)
@@ -88,41 +93,7 @@ void putch(const unsigned char byte){
             //MasterConsoleStatus.bufferOverrun = 1;
             strcpy(bufOutput, "\r\n!ERROR OVERFLOW ");
             posOutput = 19;
-/*
-            posOutput = 0;
-            bufOutput[posOutput] = '\r';
-            posOutput++;
-            bufOutput[posOutput] = '\n';
-            posOutput++;
-            bufOutput[posOutput] = '!';
-            posOutput++;
-            bufOutput[posOutput] = 'O';
-            posOutput++;
-            bufOutput[posOutput] = 'V';
-            posOutput++;
-            bufOutput[posOutput] = 'R';
-            posOutput++;
-            bufOutput[posOutput] = ' ';
-            posOutput++;
- * */
         }
-        /*
-        if (USBUSARTIsTxTrfReady()){
-            putsUSBUSART(bufOutput);
-            posOutput = 0;
-            CDCTxService();
-        }
-        else{
-            // TODO: TBD what to do
-            putsUSBUSART("\r\n-ERROR OUTPUT OVERFLOW!\r\n");
-            CDCTxService();
-            MasterConsoleStatus.bufferOverrun = 1;
-            bit_set(MasterLedStatus, LED_ALARM);
-            // Clear buffer entirely
-            posOutput = 0;
-            bufOutput[posOutput] = 0x00;
-        }
-         * */
     }
 
     bufOutput[posOutput] = byte;
@@ -242,16 +213,22 @@ void any2binstr(char *sStr, unsigned long iNum, unsigned char nLen){
     while (nLen);
 }
 
+unsigned long Clock_getTime(void){
+    unsigned char tick = MasterClock.Tick;
+    unsigned long ms   = MasterClock.MS;
+    if (tick != MasterClock.Tick){
+        // This is to avoid interim changes as operations with "long" are not atomic
+        ms   = MasterClock.MS;
+    }
+    return ms;
+}
+
+
 void clock2str(char *sStr, unsigned long ms){
 	unsigned char tick, len, i, h;
     
     if (!ms){
-        tick = MasterClockTick;
-        ms   = MasterClockMS;
-        if (tick != MasterClockTick){
-            // This is to avoid interim changes as operations with "long" are not atomic
-            ms   = MasterClockMS;
-        }
+        ms   = Clock_getTime();
     }
 
 	len = 15;
@@ -294,7 +271,28 @@ unsigned char hex2byte(unsigned char c){
     return 0;
 }
 
-unsigned char read_eeprom(unsigned char addr){
+inline void str_append(unsigned char *pStr, unsigned char cChar){
+    // Only use this one if you are sure you will not overrun!
+    while (*pStr) pStr++;
+    *pStr = cChar;
+    pStr++;
+    *pStr  = 0;
+}
+
+void str_append_safe(unsigned char *pStr, unsigned char cChar, unsigned char nMaxLen){
+    if (nMaxLen && (strlen(pStr) + 1) >= nMaxLen){
+        // Silently fail to add because we're over the allocated buffer space
+        return;
+    }
+    
+    pStr += strlen(pStr);
+    *pStr = cChar;
+    pStr++;
+    *pStr  = 0;
+}
+
+
+unsigned char EEPROM_read(unsigned char addr){
     EEADR = addr;
     EECON1bits.CFGS = 0;
     EECON1bits.EEPGD = 0;
@@ -302,7 +300,7 @@ unsigned char read_eeprom(unsigned char addr){
     return EEDATA;
 }
 
-void write_eeprom(unsigned char addr, unsigned char val){
+void EEPROM_write(unsigned char addr, unsigned char val){
     EEADR  = addr;
     EEDATA = val;
     

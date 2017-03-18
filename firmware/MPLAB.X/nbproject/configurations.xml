@@ -11,15 +11,14 @@
         <logicalFolder name="crts" displayName="crts" projectFiles="true">
           <itemPath>../src/board/crts/flags.h</itemPath>
         </logicalFolder>
+        <logicalFolder name="f1" displayName="New Folder 1" projectFiles="true">
+        </logicalFolder>
         <logicalFolder name="puncher" displayName="puncher" projectFiles="true">
           <itemPath>../src/board/puncher/flags.h</itemPath>
         </logicalFolder>
         <logicalFolder name="reader" displayName="reader" projectFiles="true">
           <itemPath>../src/board/reader/flags.h</itemPath>
         </logicalFolder>
-        <itemPath>../src/board/fixed_address_memory.h</itemPath>
-        <itemPath>../src/board/system.h</itemPath>
-        <itemPath>../src/board/power.h</itemPath>
       </logicalFolder>
       <logicalFolder name="usb" displayName="usb" projectFiles="true">
         <itemPath>../src/usb/usb.h</itemPath>
@@ -34,7 +33,6 @@
       <itemPath>../src/usb_config.h</itemPath>
       <itemPath>../src/app_main.h</itemPath>
       <itemPath>../src/app_io.h</itemPath>
-      <itemPath>../src/system_config.h</itemPath>
       <itemPath>../src/app_cmd.h</itemPath>
       <itemPath>../src/app_helpers.h</itemPath>
       <itemPath>../src/app_programs.h</itemPath>
@@ -49,6 +47,9 @@
       <itemPath>../src/ring.h</itemPath>
       <itemPath>../src/heap.h</itemPath>
       <itemPath>../src/service_softserial.h</itemPath>
+      <itemPath>../src/service_monitor.h</itemPath>
+      <itemPath>../src/lib_transcoder.h</itemPath>
+      <itemPath>../src/system.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -57,9 +58,6 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <logicalFolder name="board" displayName="board" projectFiles="true">
-        <itemPath>../src/board/system.c</itemPath>
-      </logicalFolder>
       <logicalFolder name="usb" displayName="usb" projectFiles="true">
         <itemPath>../src/usb/usb_device.c</itemPath>
         <itemPath>../src/usb/usb_device_cdc.c</itemPath>
@@ -85,6 +83,8 @@
       <itemPath>../src/ring.c</itemPath>
       <itemPath>../src/heap.c</itemPath>
       <itemPath>../src/service_softserial.c</itemPath>
+      <itemPath>../src/system.c</itemPath>
+      <itemPath>../src/lib_transcoder.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -103,7 +103,7 @@
         <targetDevice>PIC18F4550</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
-        <platformTool>PICkit2PlatformTool</platformTool>
+        <platformTool>PICkit3PlatformTool</platformTool>
         <languageToolchain>XC8</languageToolchain>
         <languageToolchainVersion>1.41</languageToolchainVersion>
         <platform>3</platform>
@@ -132,13 +132,19 @@
         <makeCustomizationEnableLongLines>false</makeCustomizationEnableLongLines>
         <makeCustomizationNormalizeHexFile>false</makeCustomizationNormalizeHexFile>
       </makeCustomizationType>
+      <item path="../src/board/crts/flags.h" ex="true" overriding="false">
+      </item>
+      <item path="../src/board/puncher/flags.h" ex="true" overriding="false">
+      </item>
+      <item path="../src/board/reader/flags.h" ex="true" overriding="false">
+      </item>
       <HI-TECH-COMP>
         <property key="asmlist" value="true"/>
         <property key="define-macros" value=""/>
         <property key="disable-optimizations" value="false"/>
         <property key="extra-include-directories"
-                  value="../src;../src/usb;../src/board/console;../src/board"/>
-        <property key="favor-optimization-for" value="+speed,-space"/>
+                  value="..\src\usb;..\src\board\console"/>
+        <property key="favor-optimization-for" value="-speed,+space"/>
         <property key="identifier-length" value="255"/>
         <property key="local-generation" value="false"/>
         <property key="operation-mode" value="pro"/>
@@ -151,15 +157,15 @@
         <property key="optimization-invariant-value" value="16"/>
         <property key="optimization-level" value="9"/>
         <property key="optimization-set" value="default"/>
-        <property key="optimization-speed" value="true"/>
+        <property key="optimization-speed" value="false"/>
         <property key="optimization-stable-enable" value="false"/>
         <property key="preprocess-assembler" value="true"/>
         <property key="undefine-macros" value=""/>
         <property key="use-cci" value="false"/>
         <property key="use-iar" value="false"/>
         <property key="verbose" value="false"/>
-        <property key="warning-level" value="0"/>
-        <property key="what-to-do" value="require"/>
+        <property key="warning-level" value="-3"/>
+        <property key="what-to-do" value="ignore"/>
       </HI-TECH-COMP>
       <HI-TECH-LINK>
         <property key="additional-options-checksum" value=""/>
@@ -215,7 +221,6 @@
         <property key="ToolFirmwareFilePath"
                   value="Press to browse for a specific firmware version"/>
         <property key="ToolFirmwareOption.UseLatestFirmware" value="true"/>
-        <property key="firmware.download.all" value="false"/>
         <property key="hwtoolclock.frcindebug" value="false"/>
         <property key="memories.aux" value="false"/>
         <property key="memories.bootflash" value="true"/>
@@ -248,7 +253,7 @@
         <property key="programoptions.testmodeentrymethod" value="VDDFirst"/>
         <property key="programoptions.usehighvoltageonmclr" value="false"/>
         <property key="programoptions.uselvpprogramming" value="false"/>
-        <property key="voltagevalue" value="5.0"/>
+        <property key="voltagevalue" value="4.75"/>
       </PICkit3PlatformTool>
       <Simulator>
         <property key="codecoverage.enabled" value="Disable"/>
@@ -593,7 +598,7 @@
         <targetDevice>PIC18F4550</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
-        <platformTool>PICkit2PlatformTool</platformTool>
+        <platformTool>PICkit3PlatformTool</platformTool>
         <languageToolchain>XC8</languageToolchain>
         <languageToolchainVersion>1.41</languageToolchainVersion>
         <platform>3</platform>
@@ -622,13 +627,18 @@
         <makeCustomizationEnableLongLines>false</makeCustomizationEnableLongLines>
         <makeCustomizationNormalizeHexFile>false</makeCustomizationNormalizeHexFile>
       </makeCustomizationType>
+      <item path="../src/board/console/flags.h" ex="true" overriding="false">
+      </item>
+      <item path="../src/board/crts/flags.h" ex="true" overriding="false">
+      </item>
+      <item path="../src/board/reader/flags.h" ex="true" overriding="false">
+      </item>
       <HI-TECH-COMP>
         <property key="asmlist" value="true"/>
         <property key="define-macros" value=""/>
         <property key="disable-optimizations" value="false"/>
-        <property key="extra-include-directories"
-                  value="../src;../src/usb;../src/board/puncher;../src/board"/>
-        <property key="favor-optimization-for" value="+speed,-space"/>
+        <property key="extra-include-directories" value="..\src\board\puncher"/>
+        <property key="favor-optimization-for" value="-speed,+space"/>
         <property key="identifier-length" value="255"/>
         <property key="local-generation" value="false"/>
         <property key="operation-mode" value="pro"/>
@@ -641,15 +651,15 @@
         <property key="optimization-invariant-value" value="16"/>
         <property key="optimization-level" value="9"/>
         <property key="optimization-set" value="default"/>
-        <property key="optimization-speed" value="true"/>
+        <property key="optimization-speed" value="false"/>
         <property key="optimization-stable-enable" value="false"/>
         <property key="preprocess-assembler" value="true"/>
         <property key="undefine-macros" value=""/>
         <property key="use-cci" value="false"/>
         <property key="use-iar" value="false"/>
         <property key="verbose" value="false"/>
-        <property key="warning-level" value="0"/>
-        <property key="what-to-do" value="require"/>
+        <property key="warning-level" value="-3"/>
+        <property key="what-to-do" value="ignore"/>
       </HI-TECH-COMP>
       <HI-TECH-LINK>
         <property key="additional-options-checksum" value=""/>
@@ -738,7 +748,7 @@
         <property key="programoptions.testmodeentrymethod" value="VDDFirst"/>
         <property key="programoptions.usehighvoltageonmclr" value="false"/>
         <property key="programoptions.uselvpprogramming" value="false"/>
-        <property key="voltagevalue" value="5.0"/>
+        <property key="voltagevalue" value="4.875"/>
       </PICkit3PlatformTool>
       <Simulator>
         <property key="codecoverage.enabled" value="Disable"/>
@@ -1112,13 +1122,18 @@
         <makeCustomizationEnableLongLines>false</makeCustomizationEnableLongLines>
         <makeCustomizationNormalizeHexFile>false</makeCustomizationNormalizeHexFile>
       </makeCustomizationType>
+      <item path="../src/board/console/flags.h" ex="true" overriding="false">
+      </item>
+      <item path="../src/board/crts/flags.h" ex="true" overriding="false">
+      </item>
+      <item path="../src/board/puncher/flags.h" ex="true" overriding="false">
+      </item>
       <HI-TECH-COMP>
         <property key="asmlist" value="true"/>
         <property key="define-macros" value=""/>
         <property key="disable-optimizations" value="false"/>
-        <property key="extra-include-directories"
-                  value="../src;../src/usb;../src/board/reader;../src/board"/>
-        <property key="favor-optimization-for" value="+speed,-space"/>
+        <property key="extra-include-directories" value="..\src\board\reader"/>
+        <property key="favor-optimization-for" value="-speed,+space"/>
         <property key="identifier-length" value="255"/>
         <property key="local-generation" value="false"/>
         <property key="operation-mode" value="pro"/>
@@ -1131,15 +1146,15 @@
         <property key="optimization-invariant-value" value="16"/>
         <property key="optimization-level" value="9"/>
         <property key="optimization-set" value="default"/>
-        <property key="optimization-speed" value="true"/>
+        <property key="optimization-speed" value="false"/>
         <property key="optimization-stable-enable" value="false"/>
         <property key="preprocess-assembler" value="true"/>
         <property key="undefine-macros" value=""/>
         <property key="use-cci" value="false"/>
         <property key="use-iar" value="false"/>
         <property key="verbose" value="false"/>
-        <property key="warning-level" value="0"/>
-        <property key="what-to-do" value="require"/>
+        <property key="warning-level" value="-3"/>
+        <property key="what-to-do" value="ignore"/>
       </HI-TECH-COMP>
       <HI-TECH-LINK>
         <property key="additional-options-checksum" value=""/>
@@ -1602,13 +1617,18 @@
         <makeCustomizationEnableLongLines>false</makeCustomizationEnableLongLines>
         <makeCustomizationNormalizeHexFile>false</makeCustomizationNormalizeHexFile>
       </makeCustomizationType>
+      <item path="../src/board/console/flags.h" ex="true" overriding="false">
+      </item>
+      <item path="../src/board/puncher/flags.h" ex="true" overriding="false">
+      </item>
+      <item path="../src/board/reader/flags.h" ex="true" overriding="false">
+      </item>
       <HI-TECH-COMP>
         <property key="asmlist" value="true"/>
         <property key="define-macros" value=""/>
         <property key="disable-optimizations" value="false"/>
-        <property key="extra-include-directories"
-                  value="../src;../src/usb;../src/board/crts;../src/board"/>
-        <property key="favor-optimization-for" value="+speed,-space"/>
+        <property key="extra-include-directories" value="..\src\board\crts"/>
+        <property key="favor-optimization-for" value="-speed,+space"/>
         <property key="identifier-length" value="255"/>
         <property key="local-generation" value="false"/>
         <property key="operation-mode" value="pro"/>
@@ -1621,15 +1641,15 @@
         <property key="optimization-invariant-value" value="16"/>
         <property key="optimization-level" value="9"/>
         <property key="optimization-set" value="default"/>
-        <property key="optimization-speed" value="true"/>
+        <property key="optimization-speed" value="false"/>
         <property key="optimization-stable-enable" value="false"/>
         <property key="preprocess-assembler" value="true"/>
         <property key="undefine-macros" value=""/>
         <property key="use-cci" value="false"/>
         <property key="use-iar" value="false"/>
         <property key="verbose" value="false"/>
-        <property key="warning-level" value="0"/>
-        <property key="what-to-do" value="require"/>
+        <property key="warning-level" value="-3"/>
+        <property key="what-to-do" value="ignore"/>
       </HI-TECH-COMP>
       <HI-TECH-LINK>
         <property key="additional-options-checksum" value=""/>

@@ -76,7 +76,7 @@ inline void Program_service(void){
             if (MasterProgram.Enabled){
                 MasterProgram.Tick = MasterProgram.Time;
 
-                sprintf(sReply, "#%02u s:%02u T:%02u", 
+                sprintf(sReply, "#%02u s:%02u T:%02lu", 
                     MasterProgram.Run,
                     MasterProgram.Step,
                     MasterProgram.Tick);
@@ -98,7 +98,6 @@ void Program_cmd(unsigned char *pArgs){
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
     unsigned char n = 0;
-    unsigned char s = 0;
 
     sReply[0] = 0x00;
 

@@ -22,10 +22,15 @@ inline void   str2upper(unsigned char *pStr);
 void          byte2binstr(char *sStr, unsigned char iNum);
 void          int2binstr(char *sStr, unsigned int iNum);
 void          any2binstr(char *sStr, unsigned long iNum, unsigned char nLen);
+
+unsigned long Clock_getTime(void);
 void          clock2str(char *sStr, unsigned long ms);
 unsigned char hexstr2byte(unsigned char *sStr);
 unsigned char hex2byte(unsigned char c);
+inline void   str_append(unsigned char *pStr, unsigned char cChar);
+void          str_append_safe(unsigned char *pStr, unsigned char cChar, unsigned char nMaxlen);
+
 
 // EEPROM
-unsigned char read_eeprom(unsigned char addr);
-void          write_eeprom(unsigned char addr, unsigned char val);
+unsigned char EEPROM_read(unsigned char addr);
+void          EEPROM_write(unsigned char addr, unsigned char val);

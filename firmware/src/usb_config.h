@@ -103,6 +103,7 @@
 #define USB_INTERRUPT
 //------------------------------------------------------------------------------
 
+
 /* Parameter definitions are defined in usb_device.h */
 #define USB_PULLUP_OPTION USB_PULLUP_ENABLE
 //#define USB_PULLUP_OPTION USB_PULLUP_DISABLED

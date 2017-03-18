@@ -69,12 +69,12 @@ void          Music_getStatus(unsigned char *pStatus);
 void          Music_cmd(unsigned char *pArgs);
 
 void Music_init(void){
-    MasterMidi.address    = read_eeprom(EEDATA_MIDI_ADDRESS);
-    MasterMidi.length     = read_eeprom(EEDATA_MIDI_LENGTH);
-    MasterMidi.first_note = read_eeprom(EEDATA_MIDI_FIRST_NOTE);
+    MasterMidi.address    = EEPROM_read(EEDATA_MIDI_ADDRESS);
+    MasterMidi.length     = EEPROM_read(EEDATA_MIDI_LENGTH);
+    MasterMidi.first_note = EEPROM_read(EEDATA_MIDI_FIRST_NOTE);
     
-    MasterMusic.address   = read_eeprom(EEDATA_MUSIC_0_ADDRESS);
-    MasterMusic.length    = read_eeprom(EEDATA_MUSIC_0_LENGTH)  >> 1;
+    MasterMusic.address   = EEPROM_read(EEDATA_MUSIC_0_ADDRESS);
+    MasterMusic.length    = EEPROM_read(EEDATA_MUSIC_0_LENGTH)  >> 1;
     
     MasterMusic.period    = 50;
     MasterMusic.time      = 10000;
@@ -111,7 +111,6 @@ inline void Music_beat(void){
 
 void Music_service(void){
     unsigned char nAddress;
-    unsigned char nNote;
     
     if (!MasterMusic.enabled){
         return;
@@ -165,8 +164,8 @@ void Music_service(void){
     if (MasterMusic.enabled){
         // Get midi note and beats (note time)
         nAddress = MasterMusic.address + (MasterMusic.step << 1);
-        MasterMusic.note  = read_eeprom(nAddress);
-        MasterMusic.beats = read_eeprom(nAddress + 1);
+        MasterMusic.note  = EEPROM_read(nAddress);
+        MasterMusic.beats = EEPROM_read(nAddress + 1);
 
         if (MasterMusic.beats){
 
@@ -212,7 +211,7 @@ unsigned char Music_getMidiPeriod(unsigned char nNote){
     else {
         nNote = nNote - MasterMidi.first_note;
         if (nNote < MasterMidi.length){
-            return read_eeprom(MasterMidi.address + nNote);
+            return EEPROM_read(MasterMidi.address + nNote);
         }
         else{
             return 0;

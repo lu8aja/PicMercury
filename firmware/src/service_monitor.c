@@ -9,34 +9,34 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include "usb.h"
-#include "usb_device_cdc.h"
 
 #include "app_globals.h"
+#include "app_main.h"
 #include "app_helpers.h"
 #include "app_io.h"
 
 
+typedef struct {
+    union {
+        unsigned char Configs;
+        struct {
+            unsigned char Enabled:1;
+            unsigned char A:1;
+            unsigned char B:1;
+            unsigned char C:1;
+            unsigned char D:1;
+            unsigned char E:1;
+            unsigned char :1;
+            unsigned char :1;
+        } Config;
+    };
+    unsigned char Port[5];
+    unsigned char Tris[5];
+} monitor_t;
+
 /*** Status of IO ***/
-unsigned char nStatus_PortA    = 0;
-unsigned char nStatus_PortB    = 0;
-unsigned char nStatus_PortC    = 0;
-unsigned char nStatus_PortD    = 0;
-unsigned char nStatus_PortE    = 0;
 
-unsigned char nStatus_TrisA    = 0;
-unsigned char nStatus_TrisB    = 0;
-unsigned char nStatus_TrisC    = 0;
-unsigned char nStatus_TrisD    = 0;
-unsigned char nStatus_TrisE    = 0;
-
-unsigned char nStatus_MonitorA = 0;
-unsigned char nStatus_MonitorB = 0;
-unsigned char nStatus_MonitorC = 0;
-unsigned char nStatus_MonitorD = 0;
-unsigned char nStatus_MonitorE = 0;
-
-
+monitor_t MasterMonitor;
 
 void Monitor_service(void);
 void Monitor_checkPins(unsigned char cPortName);
@@ -48,144 +48,138 @@ void Monitor_cmd(unsigned char *pArgs);
 
 void Monitor_service(void){
     // Notifications handling
-    if (posCommand  == 0 
-        && posOutput == 0 
-        && USBGetDeviceState()     == CONFIGURED_STATE
-        && USBIsDeviceSuspended()  == false
-        && mUSBUSARTIsTxTrfReady() == true
+    if (MasterMonitor.Config.Enabled
+        && posCommand  == 0 
+        && posOutput   == 0 
+        && APP_USB_available()
     ){
-        Monitor_checkPins('A');
-        Monitor_checkPins('B');
-        Monitor_checkPins('C');
-        Monitor_checkPins('D');
-        Monitor_checkPins('E');
+        Monitor_checkPins(1);
+        Monitor_checkPins(2);
+        Monitor_checkPins(3);
+        Monitor_checkPins(4);
+        Monitor_checkPins(5);
     }
 }
 
 
 void Monitor_checkPins(unsigned char cPortName){
-    unsigned char *pMonitor;
-    volatile unsigned char *pPort;
-    volatile unsigned char *pTris;
-    unsigned char *pStatusTris;
-    unsigned char *pStatusPort;
+    unsigned char nPort;
     
-    switch (cPortName){
-        case 'a': 
-        case 'A': 
-            pPort       = &PORTA; 
-            pTris       = &TRISA; 
-            pMonitor    = &nStatus_MonitorA; 
-            pStatusTris = &nStatus_TrisA; 
-            pStatusPort = &nStatus_PortA; 
-            break;
-        case 'b': 
-        case 'B': 
-            pMonitor    = &nStatus_MonitorB;
-            pPort       = &PORTB;
-            pTris       = &TRISB;
-            pStatusTris = &nStatus_TrisB;
-            pStatusPort = &nStatus_PortB;
-            break;
-        case 'c': 
-        case 'C':
-            pMonitor    = &nStatus_MonitorC;
-            pPort       = &PORTC;
-            pTris       = &TRISC;
-            pStatusTris = &nStatus_TrisC;
-            pStatusPort = &nStatus_PortC;
-            break;
-        case 'd': 
-        case 'D':
-            pMonitor    = &nStatus_MonitorD;
-            pPort       = &PORTD;
-            pTris       = &TRISD;
-            pStatusTris = &nStatus_TrisD;
-            pStatusPort = &nStatus_PortD;
-            break;
-        case 'e': 
-        case 'E':
-            pMonitor    = &nStatus_MonitorE;
-            pPort       = &PORTE;
-            pTris       = &TRISE;
-            pStatusTris = &nStatus_TrisE;
-            pStatusPort = &nStatus_PortE;
-            break;
-        default: return;
+    if (cPortName < 6){
+        nPort = cPortName;
+        cPortName += 'A' - 1;
     }
-    
-    if (*pMonitor == 0){
+    else if (cPortName >= 'A' && cPortName <= 'E'){
+        nPort = cPortName - 'B';  // c - A + 1 to be compatible with 1-based portnums
+    }
+    if (!nPort || nPort > 5 || bit_is_clear(MasterMonitor.Configs, nPort)){
         return;
     }
     
-    if (*pPort != *pStatusPort || *pTris != *pStatusTris){
+    nPort--; // Pointers are 0-based
+    unsigned char *pPort = &PORTA + nPort;
+    unsigned char *pTris = &TRISA + nPort;
+    unsigned cPort       = MasterMonitor.Port[nPort];
+    unsigned cTris       = MasterMonitor.Tris[nPort];
+    
+    if (*pPort != cPort || *pTris != cTris){
         clock2str(sStr1, 0);
-        byte2binstr(sStr2, *pStatusTris);
+        byte2binstr(sStr2, cTris);
         byte2binstr(sStr3, *pTris);
-        byte2binstr(sStr4, *pStatusPort);
+        byte2binstr(sStr4, cPort);
         byte2binstr(sStr5, *pPort);
         
         sprintf(sReply, "%c %s TRIS %s > %s PORT %s > %s", cPortName, sStr1, sStr2, sStr3, sStr4, sStr5);
 
         printReply(3, "MONITOR", sReply);
         
-        *pStatusPort = *pPort;
-        *pStatusTris = *pTris;
+        MasterMonitor.Port[nPort] = *pPort;
+        MasterMonitor.Tris[nPort] = *pTris;
     }
 }
 
 
 void Monitor_cmd(unsigned char *pArgs){
     bool bOK = true;
+    unsigned char *pS = sReply;
+    unsigned char nPort;
+    
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
-    unsigned char *pMonitor = NULL;
     
     sReply[0] = 0x00;
     
-    str2lower(pArgs);
+    str2upper(pArgs);
     
     pArg1 = strtok(pArgs, txtWhitespace);
     pArg2 = strtok(NULL,  txtWhitespace);
 
-    str2upper(pArg1);
-    if (strlen(pArg1) == 1){
-        switch (pArg1[0]){
-            case 'A': pMonitor = &nStatus_MonitorA; break;
-            case 'B': pMonitor = &nStatus_MonitorB; break;
-            case 'C': pMonitor = &nStatus_MonitorC; break;
-            case 'D': pMonitor = &nStatus_MonitorD; break;
-            case 'E': pMonitor = &nStatus_MonitorE; break;
-        }
-    }
-
     if (!pArg1){
-        strcat(sReply, "A ");
-        strcat(sReply, nStatus_MonitorA > 0 ? txtOn : txtOff);
-        strcat(sReply, " / B ");
-        strcat(sReply, nStatus_MonitorB > 0 ? txtOn : txtOff);
-        strcat(sReply, " / C ");
-        strcat(sReply, nStatus_MonitorC > 0 ? txtOn : txtOff);
-        strcat(sReply, " / D ");
-        strcat(sReply, nStatus_MonitorD > 0 ? txtOn : txtOff);
-        strcat(sReply, " / E ");
-        strcat(sReply, nStatus_MonitorE > 0 ? txtOn : txtOff);
+        nPort = 'A';
+        
+        *pS++ = nPort;
+        *pS++ = ':';
+        *pS++ = MasterMonitor.Config.A + 48;
+        *pS++ = ' ';
+        *pS++ = '/';
+        
+        nPort++;
+        *pS++ = ' ';
+        *pS++ = nPort;
+        *pS++ = ':';
+        *pS++ = MasterMonitor.Config.B + 48;
+        *pS++ = ' ';
+        *pS++ = '/';
+
+        nPort++;
+        *pS++ = ' ';
+        *pS++ = nPort;
+        *pS++ = ':';
+        *pS++ = MasterMonitor.Config.C + 48;
+        *pS++ = ' ';
+        *pS++ = '/';
+
+        nPort++;
+        *pS++ = ' ';
+        *pS++ = nPort;
+        *pS++ = ':';
+        *pS++ = MasterMonitor.Config.D + 48;
+        *pS++ = ' ';
+        *pS++ = '/';
+
+        nPort++;
+        *pS++ = ' ';
+        *pS++ = nPort;
+        *pS++ = ':';
+        *pS++ = MasterMonitor.Config.E + 48;
+        *pS++ = 0;
     }
-    else {
-        if (!pMonitor){
+    else if (strlen(pArg1) == 1){
+        nPort = pArg1[0];
+        if (nPort >= 'A' && nPort <= 'E'){
+            strcpy(sReply, pArg1);
+            strcat(sReply, txtSpc);
+
+            nPort = nPort - 'B';  // c - A + 1 to be compatible with 1-based portnums
+        
+            if (!pArg2){
+                bit_flip(MasterMonitor.Configs, nPort);
+            }
+            else {
+                bit_write(MasterMonitor.Configs, nPort, strequal(pArg2, "on"));
+            }
+            
+            MasterMonitor.Config.Enabled = 1;
+            strcat(sReply, bit_is_set(MasterMonitor.Configs, nPort) ? txtOn : txtOff);
+        }
+        else {
             bOK = false;
             strcpy(sReply, txtErrorUnknownArgument);
         }
-        else if (!pArg2){
-            *pMonitor ^= 1;
-            strcpy(sReply, pArg1);
-            strcat(sReply, *pMonitor ? " On" : " Off");
-        }
-        else {
-            *pMonitor = strcmp(pArg2, "on") == 0 ? 1 : 0;
-            strcpy(sReply, pArg1);
-            strcat(sReply, *pMonitor ? " On" : " Off");
-        }
+    }
+    else {
+        bOK = false;
+        strcpy(sReply, txtErrorUnknownArgument);
     }
 
     printReply(bOK, "MONITOR", sReply);

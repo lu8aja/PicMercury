@@ -9,8 +9,8 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "usb.h"
-#include "usb_device_cdc.h"
+#include "usb/usb.h"
+#include "usb/usb_device_cdc.h"
 
 #include "data_eeprom.h"
 
@@ -28,7 +28,7 @@
 
 #include "app_programs.h"
 
-#include "system_config.h"
+//#include "system_config.h"
 
 /** PROTOTYPES *******************************************************/
 // APP Commands
@@ -73,8 +73,10 @@ void APP_CMD_debug(unsigned char *pArgs){
     }
 
     strcat(sReply, MasterDebug > 0 ? txtOn : txtOff);
+    //strcat(sReply, " ");
+    //strcat(sReply, MasterDebugMsg);
 
-    printReply(1, "DEBUG", sReply);
+    printReply(bOK, "DEBUG", sReply);
 }
 
 
@@ -146,10 +148,8 @@ void APP_CMD_write(unsigned char *pArgs){
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
 
-    unsigned char nBit = 255; // Double purpose, bit number for single pin or TRIS value for whole port
-    unsigned char nMax = '7';
-    volatile unsigned char *pPort;
-    volatile unsigned char *pTris;
+    unsigned char n = 0;
+    volatile unsigned char *pReg;
 
     sReply[0] = 0x00;
 
@@ -164,62 +164,57 @@ void APP_CMD_write(unsigned char *pArgs){
     }
 
     if (bOK){
-        switch (pArg1[0]){
-            case 'A':
-                // RA6 OSC2 / RA7 n/a
-                pPort = &LATA; pTris = &TRISA; nMax = '5'; break;
-            case 'B':
-                pPort = &LATB; pTris = &TRISB; break;
-            case 'C':
-                // RC3 n/a / RC4 D- ReadOnly / RC5 D+ ReadOnly / RC6 TX UART / RC7 RX UART
-                pPort = &LATC; pTris = &TRISC; nMax = '2'; break;
-            case 'D':
-                pPort = &LATD; pTris = &TRISD; break;
-            case 'E':
-                // RE3..7 Does not exist
-                pPort = &LATE; pTris = &TRISE; nMax = '2'; break;
-            default: 
-                bOK = false;
-                strcat(sReply, txtErrorUnknownArgument);
-                break;
+        if (pArg1[0] < 'A' || pArg1[0] > 'E'){
+            bOK = false;
+            strcat(sReply, txtErrorUnknownArgument);
         }
     }
 
     if (bOK){
-        if (pArg1 && pArg1[1]){
-            // Single pin
-            if (pArgs[1] >= '0' && pArgs[1] <= nMax){
-                nBit = pArgs[1] - 48;
-                bit_clear(*pTris, nBit);
+        if (pArg1[1]){
+            
+            if ( (pArg1[0] == 'A' && pArg1[1] > '5') 
+             || ((pArg1[0] == 'C' || pArg1[0] == 'E') && pArg1[1] > '2') 
+            ){
+                // RA6 OSC2 / RA7 n/a
+                // RC3 n/a / RC4 D- ReadOnly / RC5 D+ ReadOnly / RC6 TX UART / RC7 RX UART
+                // RE3..7 Does not exist
                 
+                bOK = false;
+                strcat(sReply, txtErrorUnknownPin);
+            }
+            
+            if (bOK){
                 sReply[0] = pArg1[0];
                 sReply[1] = pArg1[1];
                 sReply[2] = '=';
-                sReply[4] = 0;
+
+                // Single pin
+                pin_cfg(pArg1[0], pArg1[1] - 48, 0);
 
                 if (strequal(pArg2, "ON") || strequal(pArg2, "1")){
-                    bit_set(*pPort, nBit);
+                    pin_write(pArg1[0], pArg1[1] - 48, 1);
                     sReply[3] = '1';
                 }
                 else{
-                    bit_clear(*pPort, nBit);
+                    pin_write(pArg1[0], pArg1[1] - 48, 0);
                     sReply[3] = '0';
                 }
-            }
-            else {
-                bOK = false;
-                strcat(sReply, txtErrorUnknownPin);
+                sReply[4] = 0;
             }
         }
         else{
             // Whole port
-            *pTris = 0x00;
-            *pPort = (unsigned char) atoi(pArg2);
-
+            n = pArg1[0] - 'A';
+            pReg = TRISA + n;
+            *pReg = 0x00; // All outputs (this may interfere with USB, be careful)
+            
+            pReg = LATA + n;
+            *pReg = (unsigned char) atoi(pArg2);
             
             sReply[0] = pArg1[0];
             sReply[1] = '=';
-            byte2binstr(&sReply[2], *pPort);
+            byte2binstr(&sReply[2], *pReg);
         }
     }
     
@@ -262,16 +257,16 @@ void APP_CMD_var_dummy(unsigned char *pArgs){
                 /*** MASTER CLOCK */
                 var    = MasterClockTickCount; break;
             case 2: 
-                pChar  = &MasterClockTick; break;
+                pChar  = &MasterClock.Tick; break;
             case 3: 
-                pLong  = &MasterClockMS; break;
+                pLong  = &MasterClock.MS; break;
                 /*** MASTER NOTIFY ***/
             case 10: 
-                pInt   = &MasterNotifyCounter; break;
+                pInt   = &MasterClock.NotifyCounter; break;
             case 11: 
-                pInt   = &MasterNotify; break;
+                pInt   = &MasterClock.NotifyTime; break;
             case 12: 
-                pLong  = &MasterNotifyNow; break;
+                pLong  = &MasterClock.NotifyNow; break;
 
         #if defined(LIB_LEDS)
                 /*** MASTER LEDS ***/
@@ -447,11 +442,11 @@ void APP_CMD_var_dummy(unsigned char *pArgs){
 
             if (pChar){
                 byte2binstr(sStr1, *pChar);
-                sprintf(sReply, "%u Char %3u %2x %s @ %04u", num, *pChar, *pChar, sStr1, pChar);
+                sprintf(sReply, "%u Char %3u %2x %s @ %04u", (unsigned int) num, *pChar, *pChar, sStr1, pChar);
             }
             else if (pInt){
                 int2binstr(sStr1, *pInt);
-                sprintf(sReply, "%u Int %5u %4u %s @ %04u", num, *pInt, *pInt, sStr1, pInt);
+                sprintf(sReply, "%u Int %5u %4u %s @ %04u", (unsigned int) num, *pInt, *pInt, sStr1, pInt);
             }
             else if (pLong){
                 any2binstr(sStr5, *pLong, 32);
@@ -488,11 +483,11 @@ void APP_CMD_var_ee(unsigned char *pArgs){
         addr = atoi(pArg1);
         if (pArg2){
             val = (unsigned char) atoi(pArg2);
-            eeprom_write(addr, val);
+            EEPROM_write(addr, val);
             sprintf(sReply, "W %02x <- %02x", addr, val);
         }
         else{
-            val = (unsigned char) eeprom_read(addr);
+            val = (unsigned char) EEPROM_read(addr);
             sprintf(sReply, "R %02x = %02x", addr, val);
         }
     }

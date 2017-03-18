@@ -39,6 +39,8 @@ const char txtWhitespace[] = " \t\r\n";
 
 const char txtOn[]        = "On";
 const char txtOff[]       = "Off";
+const char txtSpc[]       = " ";
+const char txtSep[]       = " / ";
 
 const char txtErrorMissingCommand[]  = "Missing command";
 const char txtErrorUnknownCommand[]  = "Unknown command";
@@ -53,19 +55,28 @@ const char txtErrorBusy[]            = "Busy";
 /** VARIABLES ******************************************************/
 /*** MASTER DEBUG ***/
 unsigned char MasterDebug         = 0;     // 
+//unsigned char MasterDebugMsg[16]  = "";
 
 /*** MASTER CLOCK */
-
 // Timer0 setup (Clock 1:2 => once every 1/23 ms aprox)
 #define       MasterClockTimer 0b01000000  // [0]Off, [1]8bit, [0]CLKO, [0]L2H, [0]PreOn, [000]1:2
-#define       MasterClockTickCount  23     // Number of ticks per ms
-unsigned char MasterClockTick     = 23;    // Tick counter 0,1,2
-unsigned long MasterClockMS       = 0;     // MS counter, good for up to over a month
+#define       MasterClockTickCount  23         // Number of ticks per ms
 
-/*** MASTER NOTIFY ***/
-unsigned int  MasterNotifyCounter = 0;     // Notification timer counter    
-unsigned int  MasterNotify        = 60000; // When to notify (1 minute))
-unsigned long MasterNotifyNow     = 0;     // When not 0, the main loop will notify
+typedef struct {
+    unsigned char Tick     ;     // Tick counter 0,1,2
+    unsigned long MS       ;     // MS counter, good for up to over a month
+    /*** MASTER NOTIFY ***/
+    unsigned int  NotifyCounter ;// Notification timer counter    
+    unsigned int  NotifyTime;    // When to notify (1 minute))
+    unsigned long NotifyNow;     // When not 0, the main loop will notify
+    
+} Clock_t;
+
+Clock_t MasterClock;
+
+
+
+Clock_t MasterClock;
 
 /*** Buffer sizes ***/
 #define sizeChunk      4
@@ -82,6 +93,15 @@ unsigned long MasterNotifyNow     = 0;     // When not 0, the main loop will not
     #define SOFTSERIAL_sizeOutput 32
     #define SOFTSERIAL_sizeInput  32
 #endif
+
+#ifdef DEVICE_CONSOLE
+    #define HEAP_SIZE             100    // Remember that the ring structs themselves waste about 6 bytes
+#endif
+
+#ifndef HEAP_SIZE
+    #define HEAP_SIZE             100
+#endif
+
 
 /*** Buffers ***/
 unsigned char  bufChunk[sizeChunk];

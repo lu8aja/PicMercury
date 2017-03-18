@@ -5,9 +5,9 @@
 
 #include "app_main.h"
 
-#include "usb.h"
-#include "usb_device.h"
-#include "usb_device_cdc.h"
+#include "usb/usb.h"
+#include "usb/usb_device.h"
+#include "usb/usb_device_cdc.h"
 
 /********************************************************************
  * Function:        void main(void)
@@ -15,8 +15,8 @@
  * Note:            None
  *******************************************************************/
 MAIN_RETURN main(void){
-    SYSTEM_Initialize(SYSTEM_STATE_USB_START);
-    
+    //SYSTEM_Initialize(SYSTEM_STATE_USB_START);
+
     APP_init();
     
     USBDeviceInit();
@@ -24,10 +24,15 @@ MAIN_RETURN main(void){
     USBDeviceAttach();
     
     while(1){
-        SYSTEM_Tasks();
+        //SYSTEM_Tasks();
 
+        
         //Application specific tasks
         APP_main();
+        
+        
+        continue;
+        
 
         /* If the USB device isn't configured yet, we can't really do anything
          * else since we don't have a host to talk to.  So jump back to the

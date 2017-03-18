@@ -17,28 +17,14 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include "usb.h"
-#include "usb_device_cdc.h"
+#include "usb/usb.h"
+// #include "usb/usb_device_cdc.h"
 
 #include "app_globals.h"
 #include "app_helpers.h"
 #include "app_io.h"
 
-typedef struct {
-    // Configs
-    unsigned char Enabled;      // 0 = Off / 1 = On
-    unsigned char Alarms;       // 0 = Off / 1 = On
-    unsigned char Time;         // Ticks in ms to count while flashing led
-    unsigned char StepEnabled;  // 0 = Off / 1 = On
-    unsigned char StepRestart;  // 0 = Disable when Time is reached / 1 = Restart 
-    unsigned int  StepTime;     // Time in ms the step should be help in place
-    
-    // Runtime
-    unsigned int  Status;       // Bitfield of 16 leds statuses
-    unsigned char Step;         // Current step in sequence
-    unsigned char Tick;         // Flashing tick period counter Time..0
-    unsigned int  StepTick;     // Tick counter for each step StepTime..0
-} leds_t;
+#include "service_leds.h"
 
 
 leds_t MasterLeds;
@@ -46,47 +32,42 @@ leds_t MasterLeds;
 const unsigned int MasterLedSteps[] = {
    //B4555544433332222
    //A0321032132103210
-    0b0000000000000001,
-    0b0000000000000010,
-    0b0000000000000100,
-    0b0000000000001000,
-    0b0000000000010000,
-    0b0000000000100000,
-    0b0000000001000000,
-    0b0000000010000000,
-    0b0000000100000000,
-    0b0000001000000000,
-    0b0000010000000000,
-    0b0000100000000000,
-    0b0001000000000000,
-    0b0010000000000000,
-    0b0100000000000000,
-    0b0000000000001111,
-    0b0000000011110000,
-    0b0000011100000000,
-    0b0111100000000000,
-    0b0101010101010101,
-    0b0010101010101010,
-    0b0111111111111111,
-    0b0000000000000000,
+    0b0000000000000001, //0
+    0b0000000000000010, //1
+    0b0000000000000100, //2
+    0b0000000000001000, //3
+    0b0000000000010000, //4
+    0b0000000000100000, //5
+    0b0000000001000000, //6
+    0b0000000010000000, //7
+    0b0000000100000000, //8
+    0b0000001000000000, //9
+    0b0000010000000000, //10
+    0b0000100000000000, //11
+    0b0001000000000000, //12
+    0b0010000000000000, //13
+    0b0100000000000000, //14
+    0b1000000000000000, //15
+    0b0000000000001111, // 0  + 1  + 2  + 3
+    0b0000000011110000, // 4  + 5  + 6  + 7
+    0b0000111100000000, // 8  + 9  + 10 + 11
+    0b1111000000000000, // 12 + 13 + 14 + 15
+    0b0101010101010101, // 0 + 2 + 4 + 8 + 10 + 12 + 14
+    0b0010101010101010, // 1 + 3 + 5 + 7 + 9 + 11 + 13 + 15
+    0b1111111111111111, // ALL
+    0b0000000000000000, // NONE
 };
 const unsigned char MasterLedStepsLen = sizeof(MasterLedSteps) / sizeof(MasterLedSteps[0]);
 
 
-inline void Leds_init(void);
-inline void Leds_tick(void);
-inline void Leds_service(void);
-void Leds_updateLeds(void);
-void Leds_updateUsb(void);
-void Leds_cmd(unsigned char *pArgs);
 
 inline void Leds_init(void){
     // Configs
     MasterLeds.Enabled    = 1;
-    MasterLeds.Time       = 10;    // Ticks in ms to count while flashing led
+    MasterLeds.Time       = 2000;   // Ticks in ms to count while flashing led
     MasterLeds.StepEnabled= 0;     // 0 = Off / 1 = On
     MasterLeds.StepRestart= 1;     // 0 = Disable when Time is reached / 1 = Restart 
-    MasterLeds.StepTime   = 1500;  // Time in ms for each step
+    MasterLeds.StepTime   = 10000;  // Time in ms for each step
     // Runtime
     MasterLeds.Status     = 0;     // Bitfield of 16 leds statuses
     MasterLeds.Tick       = 0;     // Flashing tick period counter Time..0
@@ -102,13 +83,19 @@ inline void Leds_tick(void){
         MasterLeds.StepTick--;
     }
     
+/*
     if (MasterLeds.Alarms){
         Leds_updateUsb();
     }
+ */
 }
 
 inline void Leds_service(void){
     // MASTER LED
+    if (!MasterLeds.Enabled){
+        return;
+    }
+    
     if (!MasterLeds.Tick){
         Leds_updateLeds();
         MasterLeds.Tick = MasterLeds.Time;
@@ -184,13 +171,13 @@ void Leds_updateLeds(void){
     LEDS_CATHODES_LAT &= ~LEDS_CATHODES; // We always force a 0 on A (Cathode)
     LEDS_ANODES_LAT   |= LEDS_ANODES;    // We always force a 1 on B (Anode)
 
-    /*
+
     byte2binstr(sStr1, nCathodes);
     byte2binstr(sStr2, LEDS_CATHODES_TRIS);
     byte2binstr(sStr3, LEDS_ANODES_TRIS);
     
     printf("\r\n!OK LED A=%u K=%s TK=%s TA=%s\r\n", nCurrentAnode, sStr1, sStr2, sStr3);
-    */
+
 }
 
 /*
@@ -255,33 +242,56 @@ void Leds_cmd(unsigned char *pArgs){
     
     str2lower(pArgs);
     
-    pArg1 = strtok(pArgs, txtWhitespace);
-    pArg2 = strtok(NULL,  txtWhitespace);
+    if (pArgs && *pArgs){
+        pArg1 = strtok(pArgs, txtWhitespace);
+        pArg2 = strtok(NULL,  txtWhitespace);
 
-    if (strlen(pArg1) == 1 && !pArg2){
-        nLed = (unsigned char) strtol(pArg1, NULL, 16);
-        sprintf(sReply, "%d %s", nLed, bit_is_set(MasterLeds.Status, nLed) ? txtOn : txtOff);
-    }
-    else if(strlen(pArg1) == 1) {
-        nLed = (unsigned char) strtol(pArg1, NULL, 16);
-        iBit = 0;
-        if (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0){
-            iBit = 1;
+        if (strequal(pArg1, "on")){
+            MasterLeds.Enabled = 1;
+            strcpy(sReply, txtOn);
         }
-        bit_write(MasterLeds.Status, nLed, iBit);
-        sprintf(sReply, "%d %s", nLed, iBit ? txtOn : txtOff);
-    }
-    else if (strlen(pArg1) == 0){
-        // Do nothing, just print info
-    }
-    else if (strcmp(pArg1, "steps") == 0){
-        MasterLeds.StepTick    = 0;
-        MasterLeds.StepEnabled = (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0) ? 2 : 0;
-        sprintf(sReply, "Steps: %s", MasterLeds.StepEnabled ? txtOn : txtOff);
-    }
-    else{
-        bOK = false;
-        strcpy(sReply, txtErrorUnknownArgument);
+        else if (strequal(pArg1, "off")){
+            MasterLeds.Enabled = 0;
+            strcpy(sReply, txtOff);
+        }
+        else if (strequal(pArg1, "restart")){
+            MasterLeds.StepRestart = (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0) ? 1 : 0;
+        }
+        else if (strequal(pArg1, "time")){
+            MasterLeds.Time = atoi(pArg2);
+        }
+        else if (strequal(pArg1, "steps")){
+            MasterLeds.StepTick    = 0;
+            MasterLeds.StepEnabled = (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0) ? 2 : 0;
+            if (MasterLeds.StepEnabled){
+                MasterLeds.Enabled = 1;
+            }
+            sprintf(sReply, "Steps: %s", MasterLeds.StepEnabled ? txtOn : txtOff);
+        }
+
+        else if (strlen(pArg1) == 1){
+            if (!pArg2){
+                nLed = (unsigned char) atoi(pArg1);
+                sprintf(sReply, "%d %s", nLed, bit_is_set(MasterLeds.Status, nLed) ? txtOn : txtOff);
+
+            }
+            else{
+                nLed = (unsigned char) atoi(pArg1);
+                iBit = 0;
+                if (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0){
+                    iBit = 1;
+                }
+                bit_write(MasterLeds.Status, nLed, iBit);
+                sprintf(sReply, "%d %s", nLed, iBit ? txtOn : txtOff);
+            }
+        }
+        else if (strlen(pArg1) == 0){
+            // Do nothing, just print info
+        }
+        else{
+            bOK = false;
+            strcpy(sReply, txtErrorUnknownArgument);
+        }
     }
     
     strcat(sReply, " Status: ");

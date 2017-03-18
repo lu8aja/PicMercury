@@ -1,23 +1,25 @@
 #include <xc.h>
 #include <ctype.h>
 
+#include "app_globals.h"
+
 #define LIB_HEAP
 
-#ifndef HEAP_SIZE
-    #define HEAP_SIZE 64
+#ifndef HEAP_Size
+    #define HEAP_Size 64
 #endif
 
-unsigned char Heap[HEAP_SIZE];
+unsigned char Heap[HEAP_Size];
 unsigned char *pHeapNext;
 
-unsigned char *heap_alloc(unsigned char len){
+unsigned char *Heap_alloc(unsigned char len){
     unsigned char *ptr;
     if (!pHeapNext){
         pHeapNext = &Heap;    
     }
     ptr = pHeapNext;
     pHeapNext += len;
-    if (pHeapNext >= &Heap + HEAP_SIZE){
+    if (pHeapNext >= &Heap + HEAP_Size){
         // Forget it! We don't have enough space
         pHeapNext = ptr;
         return 0;
@@ -25,7 +27,7 @@ unsigned char *heap_alloc(unsigned char len){
     return ptr;    
 }
 
-void heap_free(unsigned char *ptr){
+void Heap_free(unsigned char *ptr){
     if (ptr && ptr < pHeapNext){
         *pHeapNext = (unsigned char *) ptr;
     }

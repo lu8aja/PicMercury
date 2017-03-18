@@ -62,7 +62,7 @@ inline void I2C_Master_init(void){
     SSPSTAT           = 0;
     SSPCON1bits.SSPM  = 0b1000;  // I2C Master Mode
     SSPSTATbits.SMP   = 1;       // Disable slew rate
-    SSPADD            = (BOARD_XTAL_FREQ / (4 * I2C_BAUD)) - 1; //Configure baud rate
+    SSPADD            = (CFG_BOARD_XTAL_FREQ / (4 * I2C_BAUD)) - 1; //Configure baud rate
     //Enable interrupts
     PIE1bits.SSPIE    = 1;       //Enable SSP interrupts
     PIR1bits.SSPIF    = 0;       //Clear interrupt flag
@@ -385,5 +385,5 @@ void I2C_cmd(unsigned char *pArgs){
         #endif
     }
 
-    printReply(1, "I2C", sReply);
+    printReply(bOK, "I2C", sReply);
 }

@@ -11,17 +11,20 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "ring.h"
 
-#include "usb.h"
-#include "usb_device_cdc.h"
-#include "system_config.h"
+#include "app_globals.h"
+
+#include "lib_ring.h"
+
+#include "usb/usb.h"
+#include "usb/usb_device_cdc.h"
+//#include "system_config.h"
 
 #include "flags.h"
 
 #include "data_eeprom.h"
 
-#include "app_globals.h"
+
 #include "app_io.h"
 #include "app_helpers.h"
 #include "app_cmd.h"
@@ -40,28 +43,30 @@
     #include "service_keys.h"      // Keyboard diode matrix
     #include "service_music.h"     // Tone generator
     // #include "service_uart.h"      // UART
-    // #include "service_monitor.h"   // Pin monitor
+    #include "service_monitor.h"   // Pin monitor
     #include "service_program.h"   // Program service
 #endif
 
 
 /** PUBLIC PROTOTYPES ***************************************/
 
-void         APP_init(void);
-void         APP_main(void);
-void         APP_executeCommand(unsigned char *pLine);
-void         APP_USB_output(void);
+void          APP_init(void);
+void          APP_main(void);
+void          APP_executeCommand(unsigned char *pLine);
+void          APP_USB_output(void);
 
 /** PRIVATE PROTOTYPES ***************************************/
 // USB
-void         APP_USB_configured(void);
-void         APP_USB_input(void);
+
+unsigned char APP_USB_available(void);
+void          APP_USB_configured(void);
+void          APP_USB_input(void);
 
 /** FUNCTIONS *******************************************************/
 void APP_init(void){
     ADCON1 = 0b00001111;  // We are not using any analog input
                           // This is specially important for I2C
-    
+
     #ifdef LIB_KEYS
         Keys_init();
     #endif
@@ -75,7 +80,7 @@ void APP_init(void){
     #endif
 
     #ifdef LIB_PUNCHER
-        Puncher_init(1, 1);
+        Puncher_init(1, 3);
     #endif
 
     #ifdef LIB_PROGRAM
@@ -89,19 +94,21 @@ void APP_init(void){
         
     #ifdef LIB_SOFTSERIAL
         SoftSerial_init(&SoftSerial,
-            SOFTSERIAL_TX_Port,
-            SOFTSERIAL_TX_Pin,
-            SOFTSERIAL_TX_Invert,
-            SOFTSERIAL_RX_Port,
-            SOFTSERIAL_RX_Pin,
-            SOFTSERIAL_RX_Invert
+            CFG_SOFTSERIAL_TX_Port,
+            CFG_SOFTSERIAL_TX_Pin,
+            CFG_SOFTSERIAL_TX_Invert,
+            CFG_SOFTSERIAL_RX_Port,
+            CFG_SOFTSERIAL_RX_Pin,
+            CFG_SOFTSERIAL_RX_Invert,
+            CFG_SOFTSERIAL_HalfDuplex,
+            CFG_SOFTSERIAL_Transcode
         );
         
         SoftSerial_enable(&SoftSerial,
             0,
-            SOFTSERIAL_RX_DataBits,
-            SOFTSERIAL_RX_StopBits,
-            SOFTSERIAL_RX_Period
+            CFG_SOFTSERIAL_RX_DataBits,
+            CFG_SOFTSERIAL_RX_StopBits,
+            CFG_SOFTSERIAL_RX_Period
         );
     #endif
     
@@ -110,11 +117,11 @@ void APP_init(void){
             I2C_Master_init();
         #else
             #if defined(DEVICE_PUNCHER)
-                I2C.Address = I2C_ADDRESS_PUNCHER;
+                I2C.Address = CFG_I2C_ADDRESS_PUNCHER;
             #elif defined(DEVICE_READER)
-                I2C.Address = I2C_ADDRESS_READER;
+                I2C.Address = CFG_I2C_ADDRESS_READER;
             #elif defined(DEVICE_CRTS)
-                I2C.Address = I2C_ADDRESS_CRTS;
+                I2C.Address = CFG_I2C_ADDRESS_CRTS;
             #else // Some other unknown device!?
                 I2C.Address = 0b01111111;
             #endif
@@ -136,20 +143,20 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
 	if (INTCONbits.TMR0IF){
         
         // MUSIC
-        #if defined(LIB_MUSIC)
-        Music_tick();
+        #ifdef LIB_MUSIC
+            Music_tick();
         #endif
         
         // MASTER CLOCK
-        if (MasterClockTick){
-            MasterClockTick--;
+        if (MasterClock.Tick){
+            MasterClock.Tick--;
         }
         else {
-            MasterClockTick = MasterClockTickCount;
+            MasterClock.Tick = MasterClockTickCount;
             // All counters that need ms updates
             
             // MASTER CLOCK MS
-            MasterClockMS++;
+            MasterClock.MS++;
             
             // SOFT SERIAL ms tick
             #ifdef LIB_SOFTSERIAL
@@ -182,20 +189,16 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
             #endif
 
             // MASTER NOTIFY
-            if (MasterNotifyCounter){
-                MasterNotifyCounter--;
+            if (MasterClock.NotifyCounter){
+                MasterClock.NotifyCounter--;
             }
-            else if (MasterNotify){
-                MasterNotifyCounter = MasterNotify;
+            else if (MasterClock.NotifyTime){
+                MasterClock.NotifyCounter = MasterClock.NotifyTime;
                 if (   posCommand == 0 
                     && posOutput  == 0 
                 ){
-                    unsigned char tick = MasterClockTick;
-                    MasterNotifyNow = MasterClockMS;
-                    if (tick != MasterClockTick){
-                        // This is to avoid interim changes as operations with "long" are not atomic
-                        MasterNotifyNow = MasterClockMS;
-                    }
+                    unsigned char tick = MasterClock.Tick;
+                    MasterClock.NotifyNow = Clock_getTime();
                 }
             }
         }
@@ -221,7 +224,7 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
 }
 
 void APP_main(){
-    
+
     #ifdef LIB_SOFTSERIAL
         SoftSerial_service(&SoftSerial);
     #endif
@@ -250,10 +253,10 @@ void APP_main(){
         Leds_service();
     #endif
 
-    if (MasterNotifyNow){
-        clock2str(sStr1, MasterNotifyNow);
+    if (MasterClock.NotifyNow){
+        clock2str(sStr1, MasterClock.NotifyNow);
         printReply(3, "UPTIME", sStr1);
-        MasterNotifyNow = 0;
+        MasterClock.NotifyNow = 0;
     }
     
     // Program
@@ -281,9 +284,11 @@ void APP_main(){
     #endif
     
     // USB I/O handling
-    APP_USB_input();
-    
-    APP_USB_output();
+    if( USBGetDeviceState() >= CONFIGURED_STATE && !USBIsDeviceSuspended()){
+        APP_USB_input();
+
+        APP_USB_output();
+    }
 }
 
 void APP_USB_input(void){
@@ -292,6 +297,7 @@ void APP_USB_input(void){
     uint8_t nBytes;
 
     if(!USBUSARTIsTxTrfReady()){
+        // Ensure we clear the output buffer before trying to do more stuff
         return;
     }
     
@@ -320,6 +326,7 @@ void APP_USB_input(void){
 
 void APP_USB_output(void){
     unsigned char len;
+    
     if(posOutput > 0 && USBUSARTIsTxTrfReady()){
         len = posOutput >= sizeOutUsb ? sizeOutUsb : posOutput;
         strncpy(bufTmp, bufOutput, len);
@@ -334,8 +341,8 @@ void APP_USB_output(void){
 
 
 
+
 void APP_executeCommand(unsigned char *pLine){
-    unsigned bOK = true;
     unsigned char *ptrCommand;
     unsigned char *ptrArgs;
     unsigned char n;
@@ -371,18 +378,18 @@ void APP_executeCommand(unsigned char *pLine){
         APP_CMD_uptime(ptrArgs);
 	}
     // DEBUG
-    /*
     else if (strequal(ptrCommand, "debug")){
-       //APP_CMD_debug(ptrArgs);
+        APP_CMD_debug(ptrArgs);
     }
     // READ
     else if (strequal(ptrCommand, "read") || strequal(ptrCommand, "r")){
-        //APP_CMD_read(ptrArgs);
+        APP_CMD_read(ptrArgs);
     }
     // WRITE
     else if (strequal(ptrCommand, "write") || strequal(ptrCommand, "w")){
-        //APP_CMD_write(ptrArgs);
+        APP_CMD_write(ptrArgs);
     }
+/*
     // VAR
     else if (strequal(ptrCommand, "var")){
         //APP_CMD_var(ptrArgs);
@@ -468,6 +475,10 @@ void APP_executeCommand(unsigned char *pLine){
 }
 
 /* USB stuff within APP */
+
+unsigned char APP_USB_available(void){
+    return (USBGetDeviceState() == CONFIGURED_STATE   && !USBIsDeviceSuspended() && USBUSARTIsTxTrfReady());
+}
 
 void APP_USB_configured(void){
     CDCInitEP();
