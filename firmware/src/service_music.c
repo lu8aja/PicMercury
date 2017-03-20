@@ -66,7 +66,7 @@ void          Music_service(void);
 unsigned char Music_getMidiPeriod(unsigned char nNote);
 void          Music_setSingleTone(const unsigned char nPeriod, const unsigned char nTime);
 void          Music_getStatus(unsigned char *pStatus);
-void          Music_cmd(unsigned char *pArgs);
+void          Music_cmd(Ring_t * pBuffer, unsigned char *pArgs);
 
 void Music_init(void){
     MasterMidi.address    = EEPROM_read(EEDATA_MIDI_ADDRESS);
@@ -195,11 +195,11 @@ void Music_service(void){
                 MasterMusic.note,
                 MasterMusic.time);
 
-            printReply(3, "MUSIC", sReply);
+            printReply(0, 3, "MUSIC", sReply);
         }
     }
     if (!MasterMusic.enabled){
-        printReply(3, "MUSIC", txtOff);
+        printReply(0, 3, "MUSIC", txtOff);
     }
 }
 
@@ -248,7 +248,7 @@ void Music_getStatus(unsigned char *pStatus){
     }
 }
 
-void Music_cmd(unsigned char *pArgs){
+void Music_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -392,5 +392,5 @@ void Music_cmd(unsigned char *pArgs){
         Music_getStatus(sStr5);
     }
     strcat(sReply, sStr5);
-    printReply(bOK, "MUSIC", sReply);
+    printReply(pBuffer, bOK, "MUSIC", sReply);
 }

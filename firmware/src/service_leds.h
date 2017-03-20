@@ -31,7 +31,7 @@ inline void Leds_tick(void);
 inline void Leds_service(void);
 void        Leds_updateLeds(void);
 void        Leds_updateUsb(void);
-void        Leds_cmd(unsigned char *pArgs);
+void        Leds_cmd(Ring_t * pBuffer, unsigned char *pArgs);
 
 
 

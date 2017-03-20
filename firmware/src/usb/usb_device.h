@@ -1163,8 +1163,10 @@ bool USBGetRemoteWakeupStatus(void);
     None                                                                    
   ***************************************************************************/
 USB_DEVICE_STATE USBGetDeviceState(void);
+USB_DEVICE_STATE USB_getDeviceState(void);
 /*DOM-IGNORE-BEGIN*/
 #define USBGetDeviceState() USBDeviceState
+#define USB_getDeviceState() USBDeviceState
 /*DOM-IGNORE-END*/
 
 
@@ -1253,9 +1255,9 @@ bool USBGetSuspendState(void);
   Remarks:
     None                                                                                                          
   *****************************************************************************/
-bool USBIsDeviceSuspended(void);
+bool USB_isDeviceSuspended(void);
 /*DOM-IGNORE-BEGIN*/
-#define USBIsDeviceSuspended() USBSuspendControl 
+#define USB_isDeviceSuspended() USBSuspendControl 
 /*DOM-IGNORE-END*/
 
 

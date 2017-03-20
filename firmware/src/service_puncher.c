@@ -110,7 +110,7 @@ inline unsigned char Puncher_write(unsigned char *pStr){
 }
 
 
-void Puncher_cmd(unsigned char *pArgs){
+void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -184,5 +184,5 @@ void Puncher_cmd(unsigned char *pArgs){
         }
     }
     
-    printReply(bOK, "PUNCH", sReply);
+    printReply(pBuffer, bOK, "PUNCH", sReply);
 }

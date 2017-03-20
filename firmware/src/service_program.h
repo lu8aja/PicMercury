@@ -27,4 +27,4 @@ inline void Program_tick(void);
 
 inline void Program_service(void);
 
-void Program_cmd(unsigned char *pArgs);
+void Program_cmd(Ring_t * pBuffer, unsigned char *pArgs);

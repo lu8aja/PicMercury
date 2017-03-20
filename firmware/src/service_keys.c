@@ -45,7 +45,7 @@ inline void Keys_service(void);
 void Keys_checkButtons(void);
 void Keys_getKeys(void);
 void Keys_getStatusReply(void);
-void Keys_cmd(unsigned char *pArgs);
+void Keys_cmd(Ring_t * pBuffer, unsigned char *pArgs);
 
 
 
@@ -160,7 +160,7 @@ void Keys_checkButtons(void){
             sReply[1] = '=';
             sReply[2] = MasterButtons[nBtn].status + 48;
             sReply[3] = 0x00;
-            printReply(3, "BUTTON", sReply);
+            printReply(0, 3, "BUTTON", sReply);
             
             bChanged = 1;
         }
@@ -168,13 +168,13 @@ void Keys_checkButtons(void){
     if (bChanged){
         Keys_getKeys();
         Keys_getStatusReply();
-        printReply(3, "STATUS", sReply);
+        printReply(0, 3, "STATUS", sReply);
 
         //#if defined(LIB_PROGRAM)
         if (MasterKeys.Run && MasterKeys.Address){
             unsigned char s[5];
             sprintf(s, "%u", (MasterKeys.Address >> 2) & 0x07);
-            Program_cmd(s);
+            Program_cmd(0, s);
         }
         //#endif
     }
@@ -244,7 +244,7 @@ void Keys_getStatusReply(void){
 }
 
 
-void Keys_cmd(unsigned char *pArgs){
+void Keys_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     //unsigned char *pArg2 = NULL;
@@ -275,5 +275,5 @@ void Keys_cmd(unsigned char *pArgs){
         Keys_getStatusReply();    
     }
 
-    printReply(bOK, "KEYS", sReply);
+    printReply(pBuffer, bOK, "KEYS", sReply);
 }

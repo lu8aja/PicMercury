@@ -1,13 +1,14 @@
 
 /** INCLUDES *******************************************************/
 #include "system.h"
-#include "usb_config.h"
-
-#include "app_main.h"
-
 #include "usb/usb.h"
 #include "usb/usb_device.h"
 #include "usb/usb_device_cdc.h"
+
+#include "app_main.h"
+#include "usb_config.h"
+#include "service_usb.h"
+
 
 /********************************************************************
  * Function:        void main(void)
@@ -37,7 +38,7 @@ MAIN_RETURN main(void){
         /* If the USB device isn't configured yet, we can't really do anything
          * else since we don't have a host to talk to.  So jump back to the
          * top of the while loop. */
-        if( USBGetDeviceState() < CONFIGURED_STATE ){
+        if( USB_getDeviceState() < CONFIGURED_STATE ){
             /* Jump back to the top of the while loop. */
             continue;
         }
@@ -46,7 +47,7 @@ MAIN_RETURN main(void){
          * issue a remote wakeup.  In either case, we shouldn't process any
          * keyboard commands since we aren't currently communicating to the host
          * thus just continue back to the start of the while loop. */
-        if( USBIsDeviceSuspended()){
+        if( USB_isDeviceSuspended()){
             /* Jump back to the top of the while loop. */
             continue;
         }
@@ -105,7 +106,7 @@ bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size
         case EVENT_CONFIGURED:
             /* When the device is configured, we can (re)initialize the 
              * demo code. */
-            APP_USB_configured();
+            USB_configured();
             break;
 
         case EVENT_SET_DESCRIPTOR:

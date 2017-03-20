@@ -10,9 +10,11 @@
 #include "usb/usb.h"
 #include "usb/usb_device_cdc.h"
 
+#include "lib_ring.h"
 #include "app_globals.h"
 #include "app_main.h"
 #include "app_io.h"
+#include "service_usb.h"
 
 #if defined(LIB_LEDS) // Used for overflow beep only
     #include "service_leds.h"
@@ -23,7 +25,7 @@
 
 
 // Helper functions
-void          printReply(const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply);
+void          printReply(Ring_t * pBuffer, const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply);
 void          putch(const unsigned char byte);
 void          print(const unsigned char *pStr);
 unsigned long str2long(const char *sStr);
@@ -50,7 +52,35 @@ void          EEPROM_write(unsigned char addr, unsigned char val);
 
 
 
-void printReply(const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply){
+void printReply(Ring_t * pBuffer, const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply){
+    if (pBuffer){
+        switch (nType){
+            case 0:
+                ring_append(pBuffer, "-ERROR ");
+                break;
+            case 1:
+                ring_append(pBuffer, "+OK ");
+                break;
+            case 2:
+                ring_append(pBuffer, "!ERROR ");
+                break;
+            case 3:
+                ring_append(pBuffer, "@OK ");
+                break;
+        }
+        ring_append(pBuffer, pCmd);
+        if (pReply && pReply[0]){
+            ring_append(pBuffer, ": ");
+            ring_append(pBuffer, pReply);
+        }
+        ring_append(pBuffer, txtCrLf);
+        return;
+    }
+    // USB
+    if ( USB_getDeviceState() < CONFIGURED_STATE || USB_isDeviceSuspended()){
+        return;
+    }
+
     switch (nType){
         case 0:
             print("-ERROR ");
@@ -78,8 +108,12 @@ void printReply(const unsigned char nType, const unsigned char *pCmd, const unsi
 
 // Function used by stdio (printf, etc)
 void putch(const unsigned char byte){
+    if ( USB_getDeviceState() < CONFIGURED_STATE || USB_isDeviceSuspended()){
+        return;
+    }
+    
     if (posOutput >= sizeOutput){
-        APP_USB_output();
+        USB_output();
         if (posOutput >= sizeOutput){
             
             #if defined(LIB_MUSIC)

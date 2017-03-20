@@ -66,7 +66,7 @@ inline void Program_service(void){
             
             if (!strlen(pProgram)){
                 MasterProgram.Enabled = 0;
-                printReply(3, "RUN", "Done!");
+                printReply(0, 3, "RUN", "Done!");
             }
             else {
                 MasterProgram.Step += strlen(pProgram) + 1;
@@ -81,10 +81,10 @@ inline void Program_service(void){
                     MasterProgram.Step,
                     MasterProgram.Tick);
 
-                printReply(3, "RUN", sReply);
+                printReply(0, 3, "RUN", sReply);
 
                 strcpy(bufCommand, pProgram);
-                APP_executeCommand(bufCommand);
+                APP_executeCommand(0, bufCommand);
                 bufCommand[0] = 0;
             }
         }
@@ -93,7 +93,7 @@ inline void Program_service(void){
 
 
 
-void Program_cmd(unsigned char *pArgs){
+void Program_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -126,5 +126,5 @@ void Program_cmd(unsigned char *pArgs){
         }
     }
 
-    printReply(bOK, "RUN", sReply);
+    printReply(pBuffer, bOK, "RUN", sReply);
 }

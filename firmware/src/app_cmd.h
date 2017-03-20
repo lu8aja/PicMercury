@@ -6,16 +6,11 @@
  */
 
 // APP Commands
-void APP_CMD_ping(unsigned char *pArgs);
-void APP_CMD_uptime(unsigned char *pArgs);
-void APP_CMD_debug(unsigned char *pArgs);
-void APP_CMD_music(unsigned char *pArgs);
-void APP_CMD_led(unsigned char *pArgs);
-void APP_CMD_monitor(unsigned char *pArgs);
-void APP_CMD_read(unsigned char *pArgs);
-void APP_CMD_write(unsigned char *pArgs);
-void APP_CMD_keys(unsigned char *pArgs);
-void APP_CMD_run(unsigned char *pArgs);
-void APP_CMD_var(unsigned char *pArgs);
-void APP_CMD_mem(unsigned char *pArgs);
-void APP_CMD_dump(unsigned char *pArgs);
+void APP_CMD_ping(Ring_t *pBuffer, unsigned char *pArgs);
+void APP_CMD_uptime(Ring_t *pBuffer, unsigned char *pArgs);
+void APP_CMD_debug(Ring_t *pBuffer, unsigned char *pArgs);
+void APP_CMD_read(Ring_t *pBuffer, unsigned char *pArgs);
+void APP_CMD_write(Ring_t *pBuffer, unsigned char *pArgs);
+void APP_CMD_var(Ring_t *pBuffer, unsigned char *pArgs);
+void APP_CMD_mem(Ring_t *pBuffer, unsigned char *pArgs);
+void APP_CMD_dump(Ring_t *pBuffer, unsigned char *pArgs);

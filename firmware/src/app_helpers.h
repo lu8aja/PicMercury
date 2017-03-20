@@ -4,13 +4,14 @@
  *
  * Created on February 21, 2017, 11:25 PM
  */
+#include "lib_ring.h"
 
 /** MACROS **/
 #define strequal(a, b) (strcmp(a, b) == 0)
 
 /** PROTOTYPES **/
 
-void          printReply(const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply);
+void          printReply(Ring_t * pBuffer, const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply);
 void          putch(const unsigned char byte);
 void          print(const unsigned char *pStr);
 unsigned long str2long(const char *sStr);

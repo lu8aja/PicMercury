@@ -28,7 +28,7 @@ extern monitor_t MasterMonitor;
 
 void Monitor_service(void);
 void Monitor_checkPins(unsigned char cPortName);
-void Monitor_cmd(unsigned char *pArgs);
+void Monitor_cmd(Ring_t * pBuffer, unsigned char *pArgs);
 
 
 

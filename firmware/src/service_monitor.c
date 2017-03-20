@@ -10,6 +10,8 @@
 #include <stdbool.h>
 
 
+#include "service_usb.h"
+
 #include "app_globals.h"
 #include "app_main.h"
 #include "app_helpers.h"
@@ -40,7 +42,7 @@ monitor_t MasterMonitor;
 
 void Monitor_service(void);
 void Monitor_checkPins(unsigned char cPortName);
-void Monitor_cmd(unsigned char *pArgs);
+void Monitor_cmd(Ring_t * pBuffer, unsigned char *pArgs);
 
 
 
@@ -51,7 +53,7 @@ void Monitor_service(void){
     if (MasterMonitor.Config.Enabled
         && posCommand  == 0 
         && posOutput   == 0 
-        && APP_USB_available()
+        && USB_isOutputAvailable()
     ){
         Monitor_checkPins(1);
         Monitor_checkPins(2);
@@ -91,7 +93,7 @@ void Monitor_checkPins(unsigned char cPortName){
         
         sprintf(sReply, "%c %s TRIS %s > %s PORT %s > %s", cPortName, sStr1, sStr2, sStr3, sStr4, sStr5);
 
-        printReply(3, "MONITOR", sReply);
+        printReply(0, 3, "MONITOR", sReply);
         
         MasterMonitor.Port[nPort] = *pPort;
         MasterMonitor.Tris[nPort] = *pTris;
@@ -99,7 +101,7 @@ void Monitor_checkPins(unsigned char cPortName){
 }
 
 
-void Monitor_cmd(unsigned char *pArgs){
+void Monitor_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pS = sReply;
     unsigned char nPort;
@@ -182,5 +184,5 @@ void Monitor_cmd(unsigned char *pArgs){
         strcpy(sReply, txtErrorUnknownArgument);
     }
 
-    printReply(bOK, "MONITOR", sReply);
+    printReply(pBuffer, bOK, "MONITOR", sReply);
 }

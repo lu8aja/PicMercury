@@ -115,7 +115,7 @@ inline void Leds_service(void){
                 }
                 else {
                     MasterLeds.StepEnabled = 0;
-                    printReply(3, "LEDSTEP", txtOff);
+                    printReply(0, 3, "LEDSTEP", txtOff);
                 }
             }
         }
@@ -125,7 +125,7 @@ inline void Leds_service(void){
             MasterLeds.StepTick = MasterLeds.StepTime;
             int2binstr(sStr1, MasterLeds.Status);               
             sprintf(sReply, "%02d %s", MasterLeds.Step, sStr1);
-            printReply(3, "LEDSTEP", sReply);
+            printReply(0, 3, "LEDSTEP", sReply);
         }
     }
 }
@@ -230,7 +230,7 @@ void Leds_updateLeds_original(void){
  * */
 
 
-void Leds_cmd(unsigned char *pArgs){
+void Leds_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -298,18 +298,18 @@ void Leds_cmd(unsigned char *pArgs){
     int2binstr(sStr1, MasterLeds.Status);
     strcat(sReply, sStr1);
     
-    printReply(bOK, "LED", sReply);
+    printReply(pBuffer, bOK, "LED", sReply);
 }
 
 void Leds_updateUsb(void){
     static uint16_t ledCount = 0;
 
-    if(USBIsDeviceSuspended() == true){
+    if(USB_isDeviceSuspended() == true){
         bit_clear(MasterLeds.Status, LED_USB);
         return;
     }
 
-    switch(USBGetDeviceState()){
+    switch(USB_getDeviceState()){
         case CONFIGURED_STATE:
             /* We are configured.  Blink fast. On for 75ms, off for 75ms, then reset/repeat. */
             if(ledCount == 1){

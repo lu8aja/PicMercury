@@ -47,4 +47,4 @@ void          Music_service(void);
 unsigned char Music_getMidiPeriod(unsigned char nNote);
 void          Music_setSingleTone(const unsigned char nPeriod, const unsigned char nTime);
 void          Music_getStatus(unsigned char *pStatus);
-void          Music_cmd(unsigned char *pArgs);
+void          Music_cmd(Ring_t * pBuffer, unsigned char *pArgs);

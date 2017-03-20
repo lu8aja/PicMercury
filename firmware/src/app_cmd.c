@@ -30,31 +30,19 @@
 
 //#include "system_config.h"
 
-/** PROTOTYPES *******************************************************/
-// APP Commands
-void APP_CMD_ping(unsigned char *pArgs);
-void APP_CMD_uptime(unsigned char *pArgs);
-void APP_CMD_debug(unsigned char *pArgs);
-void APP_CMD_music(unsigned char *pArgs);
-void APP_CMD_monitor(unsigned char *pArgs);
-void APP_CMD_read(unsigned char *pArgs);
-void APP_CMD_write(unsigned char *pArgs);
-void APP_CMD_run(unsigned char *pArgs);
-void APP_CMD_var(unsigned char *pArgs);
-void APP_CMD_mem(unsigned char *pArgs);
-void APP_CMD_dump(unsigned char *pArgs);
+#include "app_cmd.h"
 
 /** FUNCTIONS *******************************************************/
-void APP_CMD_ping(unsigned char *pArgs){
-    printReply(1, "PONG", pArgs);
+void APP_CMD_ping(Ring_t *pBuffer, unsigned char *pArgs){
+    printReply(pBuffer, 1, "PONG", pArgs);
 }
 
-void APP_CMD_uptime(unsigned char *pArgs){
+void APP_CMD_uptime(Ring_t *pBuffer, unsigned char *pArgs){
     clock2str(sStr1, 0);
-    printReply(1, "UPTIME", sStr1);
+    printReply(0, 1, "UPTIME", sStr1);
 }
         
-void APP_CMD_debug(unsigned char *pArgs){
+void APP_CMD_debug(Ring_t *pBuffer, unsigned char *pArgs){
     bool bOK = true;
     sReply[0] = 0x00;
     
@@ -76,11 +64,11 @@ void APP_CMD_debug(unsigned char *pArgs){
     //strcat(sReply, " ");
     //strcat(sReply, MasterDebugMsg);
 
-    printReply(bOK, "DEBUG", sReply);
+    printReply(0, bOK, "DEBUG", sReply);
 }
 
 
-void APP_CMD_read(unsigned char *pArgs){
+void APP_CMD_read(Ring_t *pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char nBit = 255; // Double purpose, bit number for single pin or TRIS value for whole port
     unsigned char nMax = '7';
@@ -140,10 +128,10 @@ void APP_CMD_read(unsigned char *pArgs){
         }
     }
     
-    printReply(bOK, "READ", sReply);
+    printReply(0, bOK, "READ", sReply);
 }
 
-void APP_CMD_write(unsigned char *pArgs){
+void APP_CMD_write(Ring_t *pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -218,12 +206,12 @@ void APP_CMD_write(unsigned char *pArgs){
         }
     }
     
-    printReply(bOK, "WRITE", sReply);
+    printReply(0, bOK, "WRITE", sReply);
 }
 
 
-void APP_CMD_var(unsigned char *pArgs){}
-void APP_CMD_var_dummy(unsigned char *pArgs){
+void APP_CMD_var(Ring_t *pBuffer, unsigned char *pArgs){}
+void APP_CMD_var_dummy(Ring_t *pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -458,10 +446,10 @@ void APP_CMD_var_dummy(unsigned char *pArgs){
             }
         }
     }
-    printReply(bOK, "VAR", sReply);
+    printReply(0, bOK, "VAR", sReply);
 }
 
-void APP_CMD_var_ee(unsigned char *pArgs){
+void APP_CMD_var_ee(Ring_t *pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -492,12 +480,12 @@ void APP_CMD_var_ee(unsigned char *pArgs){
         }
     }
     
-    printReply(bOK, "VAR", sReply);
+    printReply(0, bOK, "VAR", sReply);
 }
                 
  
 
-void APP_CMD_mem(unsigned char *pArgs){
+void APP_CMD_mem(Ring_t *pBuffer, unsigned char *pArgs){
     /*
     bool bOK = true;
     unsigned char *pArg1 = NULL;
@@ -547,7 +535,7 @@ void APP_CMD_dumptest(unsigned char *pArgs){
 }
 */
 
-void APP_CMD_dump(unsigned char *pArgs){
+void APP_CMD_dump(Ring_t *pBuffer, unsigned char *pArgs){
     /*
     bool bOK = true;
     unsigned char *pChar = 0x0f60;

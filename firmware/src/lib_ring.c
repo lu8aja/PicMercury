@@ -66,7 +66,6 @@ unsigned char ring_write(Ring_t *Ring, unsigned char data){
 unsigned char ring_read(Ring_t *Ring, unsigned char *Data){
 	if (Ring->Tail == Ring->Head){
 	    // Quickly detect empty condition
-	    *Data = 0;
 		return 0;
 	}
     Ring->Head = Ring->Head + 1;
@@ -81,10 +80,27 @@ unsigned char ring_read(Ring_t *Ring, unsigned char *Data){
 	return 1;
 }
 
+unsigned char ring_get(Ring_t *Ring){
+    unsigned char nChar;
+	if (Ring->Tail == Ring->Head){
+	    // Quickly detect empty condition
+		return 0;
+	}
+    Ring->Head = Ring->Head + 1;
+	if (Ring->Head >= Ring->Size) Ring->Head = 0;
+	nChar = Ring->Buffer[Ring->Head];
+    if (Ring->Tail == Ring->Head){
+        // We have emptied the buffer, lets move the pointers
+        // This is merely for convenience so it is more likely the buffer will be continuous
+        Ring->Head = Ring->Size - 1;
+        Ring->Tail = Ring->Head;
+    }
+	return nChar;
+}
+
 unsigned char ring_peep(Ring_t *Ring, unsigned char *Data){
 	if (Ring->Tail == Ring->Head){
 	    // Quickly detect empty condition and buffer overrun
-	    *Data = 0;
 		return 0;
 	}
     unsigned char nRead = Ring->Head;
@@ -98,7 +114,6 @@ unsigned char ring_peep(Ring_t *Ring, unsigned char *Data){
 unsigned char ring_peep_pos(Ring_t *Ring, unsigned char *Data, unsigned char nPos){
 	if (Ring->Tail == Ring->Head || nPos >= Ring->Size){
 	    // Quickly detect empty condition and buffer overrun
-	    *Data = 0;
 		return 0;
 	}
     unsigned char nRead = Ring->Head;
@@ -110,7 +125,6 @@ unsigned char ring_peep_pos(Ring_t *Ring, unsigned char *Data, unsigned char nPo
         (Ring->Tail < Ring->Head && nRead >= Ring->Tail && nRead <= Ring->Head)
     ){
         // Trying to read outside the buffer
-	    *Data = 0;
 		return 0;
     }
     
@@ -226,7 +240,7 @@ unsigned char ring_strtok(Ring_t *Ring, unsigned char *pStr, unsigned char nMaxL
 	return n;
 }
 
-unsigned char ring_append(Ring_t *Ring, unsigned char *pStr){
+unsigned char ring_append(Ring_t *Ring, const unsigned char *pStr){
     unsigned char n = 0;
     while(*pStr){
         if (!ring_write(Ring, *pStr)){
@@ -236,4 +250,32 @@ unsigned char ring_append(Ring_t *Ring, unsigned char *pStr){
         pStr++;
     }
     return n;
+}
+
+
+unsigned char ring_searchChr(Ring_t *Ring, unsigned char cSearch, unsigned char bHaltNull){
+	unsigned char n = 0;
+	unsigned char nChar = 0;
+
+    unsigned char nHead = Ring->Head;
+    
+	while (Ring->Tail != nHead) {
+        nHead++;
+        if (nHead >= Ring->Size) nHead = 0;
+        
+        nChar = Ring->Buffer[nHead];
+        
+        if (nChar == cSearch){
+            return n;
+        }
+        
+		if (bHaltNull && cSearch == 0){
+            // If we are indeed searching for null, it will return before this
+            // We use 255 as a flag meaning no found, because we are using 0 based results
+			return 255;
+		}
+        
+		n++;
+    }
+	return 255;
 }

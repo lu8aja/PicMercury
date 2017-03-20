@@ -5,6 +5,8 @@
  * Created on March 6, 2017, 2:44 AM
  */
 
+#ifndef LIB_HEAP
+
 #define LIB_HEAP
 
 
@@ -20,3 +22,5 @@ extern unsigned char Heap[HEAP_Size];
 unsigned char *Heap_alloc(unsigned char len);
 
 void Heap_free(unsigned char *ptr);
+
+#endif

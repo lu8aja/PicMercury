@@ -30,4 +30,4 @@ inline void Keys_service(void);
 void Keys_checkButtons(void);
 void Keys_getKeys(void);
 void Keys_getStatusReply(void);
-void Keys_cmd(unsigned char *pArgs);
+void Keys_cmd(Ring_t * pBuffer, unsigned char *pArgs);

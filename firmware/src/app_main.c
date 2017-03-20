@@ -14,24 +14,15 @@
 
 #include "app_globals.h"
 
-#include "lib_ring.h"
-
-#include "usb/usb.h"
-#include "usb/usb_device_cdc.h"
-//#include "system_config.h"
-
-#include "flags.h"
-
 #include "data_eeprom.h"
 
-
-#include "app_io.h"
-#include "app_helpers.h"
-#include "app_cmd.h"
-
+#include "service_usb.h"       // USB library
 #include "service_i2c.h"       // I2C library
 
-// Optional libraries with associated commands
+#include "app_io.h"
+#include "app_cmd.h"
+
+// Optional libraries with associated boards and commands
 
 #if defined(DEVICE_PUNCHER)
     #include "service_puncher.h"    // Puncher library with associated PUNCH cmd
@@ -50,20 +41,13 @@
 
 /** PUBLIC PROTOTYPES ***************************************/
 
-void          APP_init(void);
-void          APP_main(void);
-void          APP_executeCommand(unsigned char *pLine);
-void          APP_USB_output(void);
+inline void   APP_init(void);
+inline void   APP_main(void);
+void          APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine);
 
-/** PRIVATE PROTOTYPES ***************************************/
-// USB
-
-unsigned char APP_USB_available(void);
-void          APP_USB_configured(void);
-void          APP_USB_input(void);
 
 /** FUNCTIONS *******************************************************/
-void APP_init(void){
+inline void APP_init(void){
     ADCON1 = 0b00001111;  // We are not using any analog input
                           // This is specially important for I2C
 
@@ -213,17 +197,16 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
         #else
             I2C_Slave_interrupt();
         #endif
-        I2C_InterruptFlag = 0; // Clear interrupt
     }
     #endif
     
     // USB
     if (USB_InterruptFlag){
-        USBDeviceTasks();
+        USB_serviceDeviceTasks();
     }
 }
 
-void APP_main(){
+inline void APP_main(){
 
     #ifdef LIB_SOFTSERIAL
         SoftSerial_service(&SoftSerial);
@@ -255,7 +238,7 @@ void APP_main(){
 
     if (MasterClock.NotifyNow){
         clock2str(sStr1, MasterClock.NotifyNow);
-        printReply(3, "UPTIME", sStr1);
+        printReply(0, 3, "UPTIME", sStr1);
         MasterClock.NotifyNow = 0;
     }
     
@@ -284,65 +267,13 @@ void APP_main(){
     #endif
     
     // USB I/O handling
-    if( USBGetDeviceState() >= CONFIGURED_STATE && !USBIsDeviceSuspended()){
-        APP_USB_input();
-
-        APP_USB_output();
+    if( USB_getDeviceState() >= CONFIGURED_STATE && !USB_isDeviceSuspended()){
+        USB_service();
     }
 }
 
-void APP_USB_input(void){
-    uint8_t i;
-    uint8_t n;
-    uint8_t nBytes;
 
-    if(!USBUSARTIsTxTrfReady()){
-        // Ensure we clear the output buffer before trying to do more stuff
-        return;
-    }
-    
-    do {
-        nBytes = getsUSBUSART(bufChunk, 1);
-        if (nBytes > 0) {
-            /* For every byte that was read... */
-            if (bufChunk[0] == 0x0D || bufChunk[0] == 0x0A){
-                if (posCommand){
-                    bufCommand[posCommand] = 0x00;
-                    APP_executeCommand(bufCommand);
-                    posCommand = 0;
-                    bufCommand[0] = 0x00;
-                    break;
-                }
-            }
-            else{
-                bufCommand[posCommand] = bufChunk[0];
-                posCommand++;
-                bufCommand[posCommand] = 0x00;
-            }
-        }
-    }
-    while(nBytes);
-}
-
-void APP_USB_output(void){
-    unsigned char len;
-    
-    if(posOutput > 0 && USBUSARTIsTxTrfReady()){
-        len = posOutput >= sizeOutUsb ? sizeOutUsb : posOutput;
-        strncpy(bufTmp, bufOutput, len);
-        putUSBUSART(bufTmp, len);
-        strcpy(bufOutput, &bufOutput[len]);
-        posOutput = posOutput - len;
-        bufOutput[posOutput] = 0x00;
-    }
-
-    CDCTxService();
-}
-
-
-
-
-void APP_executeCommand(unsigned char *pLine){
+void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
     unsigned char *ptrCommand;
     unsigned char *ptrArgs;
     unsigned char n;
@@ -367,27 +298,27 @@ void APP_executeCommand(unsigned char *pLine){
     str2lower(ptrCommand);    
 
     if (ptrCommand == NULL){    
-        printReply(0, txtErrorMissingCommand, ptrCommand);
+        printReply(pBuffer, 0, txtErrorMissingCommand, ptrCommand);
     }
     // PING
     else if (strequal(ptrCommand, "ping")){
-        APP_CMD_ping(ptrArgs);
+        APP_CMD_ping(pBuffer, ptrArgs);
     }
     // UPTIME
 	else if (strequal(ptrCommand, "uptime")){
-        APP_CMD_uptime(ptrArgs);
+        APP_CMD_uptime(pBuffer, ptrArgs);
 	}
     // DEBUG
     else if (strequal(ptrCommand, "debug")){
-        APP_CMD_debug(ptrArgs);
+        APP_CMD_debug(pBuffer, ptrArgs);
     }
     // READ
     else if (strequal(ptrCommand, "read") || strequal(ptrCommand, "r")){
-        APP_CMD_read(ptrArgs);
+        APP_CMD_read(pBuffer, ptrArgs);
     }
     // WRITE
     else if (strequal(ptrCommand, "write") || strequal(ptrCommand, "w")){
-        APP_CMD_write(ptrArgs);
+        APP_CMD_write(pBuffer, ptrArgs);
     }
 /*
     // VAR
@@ -410,7 +341,7 @@ void APP_executeCommand(unsigned char *pLine){
 
     #ifdef LIB_SOFTSERIAL
     else if (strequal(ptrCommand, "serial")){
-        SoftSerial_cmd(ptrArgs);
+        SoftSerial_cmd(pBuffer, ptrArgs);
     }
     #endif
 
@@ -426,67 +357,53 @@ void APP_executeCommand(unsigned char *pLine){
     }
     // RUN
     else if (strequal(ptrCommand, "run")){
-        Program_cmd(ptrArgs);
+        Program_cmd(pBuffer, ptrArgs);
     }
     #endif
     // I2C
     #ifdef LIB_I2C
     else if (strequal(ptrCommand, "i2c")){
-        I2C_cmd(ptrArgs);
+        I2C_cmd(pBuffer, ptrArgs);
     }
     #endif
     // MONITOR
     #ifdef LIB_MONITOR
     else if (strequal(ptrCommand, "monitor")){
-        Monitor_cmd(ptrArgs);
+        Monitor_cmd(pBuffer, ptrArgs);
     }
     #endif
     // LED
     #ifdef LIB_LEDS
     else if (strequal(ptrCommand, "led") || strequal(ptrCommand, "l")){
-        Leds_cmd(ptrArgs);
+        Leds_cmd(pBuffer, ptrArgs);
     }
     #endif
     // KEYS
     #ifdef LIB_KEYS
     else if (strequal(ptrCommand, "keys")){
-        Keys_cmd(ptrArgs);
+        Keys_cmd(pBuffer, ptrArgs);
     }
     #endif
     // MUSIC
     #ifdef LIB_MUSIC
     else if (strequal(ptrCommand, "music") || strequal(ptrCommand, "tone") || strequal(ptrCommand, "t")){
-        Music_cmd(ptrArgs);
+        Music_cmd(pBuffer, ptrArgs);
     }
     #endif
     // PUNCH
     #ifdef LIB_PUNCHER
     else if (strequal(ptrCommand, "punch")){
-        Puncher_cmd(ptrArgs);
+        Puncher_cmd(pBuffer, ptrArgs);
     }
     #endif
     // VERSION
     else if (strequal(ptrCommand, "version")){
-        printReply(1, "VERSION", txtVersion);
+        printReply(pBuffer, 1, "VERSION", txtVersion);
     }
     else {
-        printReply(0, txtErrorUnknownCommand, 0);
+        printReply(pBuffer, 0, txtErrorUnknownCommand, 0);
     }
 }
 
-/* USB stuff within APP */
 
-unsigned char APP_USB_available(void){
-    return (USBGetDeviceState() == CONFIGURED_STATE   && !USBIsDeviceSuspended() && USBUSARTIsTxTrfReady());
-}
-
-void APP_USB_configured(void){
-    CDCInitEP();
-    line_coding.bCharFormat = 0;
-    line_coding.bDataBits   = 8;
-    line_coding.bParityType = 0;
-    line_coding.dwDTERate   = 9600;
-    
-    printReply(3, "VERSION", txtVersion);
-}
 
