@@ -1,6 +1,8 @@
 #include <xc.h>
-
+#include <stdio.h>
+#include <string.h>
 #include "lib_ring.h"
+
 
 Ring_t * ring_new(const unsigned char nSize){
     //unsigned char buffer[nSize];
@@ -253,7 +255,7 @@ unsigned char ring_append(Ring_t *Ring, const unsigned char *pStr){
 }
 
 
-unsigned char ring_searchChr(Ring_t *Ring, unsigned char cSearch, unsigned char bHaltNull){
+unsigned char ring_findChr(Ring_t *Ring, unsigned char cSearch, unsigned char bHaltNull){
 	unsigned char n = 0;
 	unsigned char nChar = 0;
 
@@ -278,4 +280,27 @@ unsigned char ring_searchChr(Ring_t *Ring, unsigned char cSearch, unsigned char 
 		n++;
     }
 	return 255;
+}
+
+void ring_dump(Ring_t *Ring, unsigned char * pStr){
+    unsigned char n;
+    unsigned char c;
+    unsigned char sTmp[6] = "\0";
+    
+    *pStr = 0;
+    
+    sprintf(pStr, "\r\nH:%u T:%u S:%u A:%u\r\n", 
+        Ring->Head,
+        Ring->Tail,
+        Ring->Size,
+        ring_available(Ring)
+    );
+    
+    for (n = 0; n < Ring->Size; n++){
+        c = Ring->Buffer[n];
+        sprintf(sTmp, " %02x %c", c, (c > 32 ? c : '_'));
+        strcat(pStr, sTmp);
+    }
+    
+    strcat(pStr, txtCrLf);
 }

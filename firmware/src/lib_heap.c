@@ -10,25 +10,25 @@
 #endif
 
 unsigned char Heap[HEAP_Size];
-unsigned char *pHeapNext;
+unsigned char *Heap_Next;
 
 unsigned char *Heap_alloc(unsigned char len){
     unsigned char *ptr;
-    if (!pHeapNext){
-        pHeapNext = &Heap;    
+    if (!Heap_Next){
+        Heap_Next = &Heap;    
     }
-    ptr = pHeapNext;
-    pHeapNext += len;
-    if (pHeapNext >= &Heap + HEAP_Size){
+    ptr = Heap_Next;
+    Heap_Next += len;
+    if (Heap_Next >= &Heap + HEAP_Size){
         // Forget it! We don't have enough space
-        pHeapNext = ptr;
+        Heap_Next = ptr;
         return 0;
     }
     return ptr;    
 }
 
 void Heap_free(unsigned char *ptr){
-    if (ptr && ptr < pHeapNext){
-        *pHeapNext = (unsigned char *) ptr;
+    if (ptr && ptr < Heap_Next){
+        Heap_Next = ptr;
     }
 }

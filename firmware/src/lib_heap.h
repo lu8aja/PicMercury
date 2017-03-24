@@ -1,5 +1,5 @@
 /* 
- * File:   heap.h
+ * File:   lib_heap.h
  * Author: Javier
  *
  * Created on March 6, 2017, 2:44 AM
@@ -18,6 +18,7 @@
 
 
 extern unsigned char Heap[HEAP_Size];
+extern unsigned char *Heap_Next;
 
 unsigned char *Heap_alloc(unsigned char len);
 

@@ -14,7 +14,7 @@
 
 #include "app_globals.h"
 #include "app_main.h"
-#include "app_helpers.h"
+#include "lib_helpers.h"
 #include "app_io.h"
 
 
@@ -85,7 +85,7 @@ void Monitor_checkPins(unsigned char cPortName){
     unsigned cTris       = MasterMonitor.Tris[nPort];
     
     if (*pPort != cPort || *pTris != cTris){
-        clock2str(sStr1, 0);
+        Clock_getStr(sStr1, 0);
         byte2binstr(sStr2, cTris);
         byte2binstr(sStr3, *pTris);
         byte2binstr(sStr4, cPort);

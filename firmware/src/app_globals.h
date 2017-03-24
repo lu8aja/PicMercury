@@ -12,7 +12,7 @@
 #include "lib_ring.h"
 
 // Thes ehelpers should be available everywhere
-#include "app_helpers.h"
+#include "lib_helpers.h"
 
 /********************************************************************
  MAIN GLOBALS USED BY APP
@@ -49,6 +49,7 @@ extern const char txtErrorInvalidArgument[];
 extern const char txtErrorMissingArgument[];
 extern const char txtErrorTooBig[];
 extern const char txtErrorBusy[];
+extern const char txtErrorCorrupt[];
 
 /*** MASTER DEBUG ***/
 extern unsigned char MasterDebug;     // 
@@ -73,24 +74,24 @@ extern Clock_t MasterClock;
 
 /*** Buffer sizes ***/
 #define sizeChunk      4
-#define sizeOutput   300
-#define sizeOutUsb   120
+#define sizeOutput   200
+#define sizeOutUsb   100
 #define sizeCommand   64
 #define sizeReply    100
 #define sizeStr       17
 
-#define I2C_sizeInput   32
-#define I2C_sizeOutput  32
+#define I2C_sizeInput   40
+#define I2C_sizeOutput  40
 
 #ifdef DEVICE_PUNCHER
-    #define HEAP_Size             100    // Remember that the ring structs themselves waste about 6 bytes
-    #define SOFTSERIAL_sizeOutput 32
-    #define SOFTSERIAL_sizeInput  32
+    #define HEAP_Size             200    // Remember that the ring structs themselves waste about 6 bytes
+    #define SOFTSERIAL_sizeOutput 45
+    #define SOFTSERIAL_sizeInput  45
 #endif
 
 
 #ifdef DEVICE_CONSOLE
-    #define HEAP_Size             100    // Remember that the ring structs themselves waste about 6 bytes
+    #define HEAP_Size             210    // Remember that the ring structs themselves waste about 6 bytes
 #endif
 
 

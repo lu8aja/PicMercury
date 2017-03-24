@@ -13,7 +13,7 @@
 #include "app_programs.h"
 
 #include "app_globals.h"
-#include "app_helpers.h"
+#include "lib_helpers.h"
 #include "app_main.h"
 
 

@@ -9,10 +9,7 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "usb/usb.h"
-#include "usb/usb_device_cdc.h"
-
-#include "data_eeprom.h"
+#include "app_cmd.h"
 
 #if defined(LIB_KEYS)
     #include "service_keys.h"
@@ -21,27 +18,24 @@
     #include "service_music.h"
 #endif
 
-#include "app_globals.h"
-#include "app_main.h"
-#include "app_io.h"
-#include "app_helpers.h"
+//#include "lib_helpers.h"
 
-#include "app_programs.h"
-
-//#include "system_config.h"
-
-#include "app_cmd.h"
+//#include "app_programs.h"
 
 /** FUNCTIONS *******************************************************/
 void APP_CMD_ping(Ring_t *pBuffer, unsigned char *pArgs){
     printReply(pBuffer, 1, "PONG", pArgs);
 }
 
-void APP_CMD_uptime(Ring_t *pBuffer, unsigned char *pArgs){
-    clock2str(sStr1, 0);
-    printReply(0, 1, "UPTIME", sStr1);
+void APP_CMD_version(Ring_t *pBuffer, unsigned char *pArgs){
+    printReply(pBuffer, 1, "VERSION", txtVersion);
 }
         
+void APP_CMD_uptime(Ring_t *pBuffer, unsigned char *pArgs){
+    Clock_getStr(sStr1, 0);
+    printReply(pBuffer, 1, "UPTIME", sStr1);
+}
+
 void APP_CMD_debug(Ring_t *pBuffer, unsigned char *pArgs){
     bool bOK = true;
     sReply[0] = 0x00;
@@ -64,7 +58,7 @@ void APP_CMD_debug(Ring_t *pBuffer, unsigned char *pArgs){
     //strcat(sReply, " ");
     //strcat(sReply, MasterDebugMsg);
 
-    printReply(0, bOK, "DEBUG", sReply);
+    printReply(pBuffer, bOK, "DEBUG", sReply);
 }
 
 
@@ -128,7 +122,7 @@ void APP_CMD_read(Ring_t *pBuffer, unsigned char *pArgs){
         }
     }
     
-    printReply(0, bOK, "READ", sReply);
+    printReply(pBuffer, bOK, "READ", sReply);
 }
 
 void APP_CMD_write(Ring_t *pBuffer, unsigned char *pArgs){
@@ -206,7 +200,7 @@ void APP_CMD_write(Ring_t *pBuffer, unsigned char *pArgs){
         }
     }
     
-    printReply(0, bOK, "WRITE", sReply);
+    printReply(pBuffer, bOK, "WRITE", sReply);
 }
 
 

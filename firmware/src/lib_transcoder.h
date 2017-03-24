@@ -10,7 +10,7 @@
 
 #include "lib_ring.h"
 #include "app_globals.h"
-#include "app_helpers.h"
+#include "lib_helpers.h"
 
 #define TRANSCODER_MASK_DATA      0b00011111 // Data mask
 #define TRANSCODER_MASK_SHIFT     0b00100000 // Shift mask (used for mode 1))

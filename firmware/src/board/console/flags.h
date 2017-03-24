@@ -1,2 +1,3 @@
 
 #define DEVICE_CONSOLE
+#define DEVICE_I2C_MASTER

@@ -63,6 +63,8 @@ unsigned char ring_strtok(Ring_t *Ring, unsigned char *pStr, unsigned char nMaxL
 unsigned char ring_append(Ring_t *Ring, const unsigned char *pStr);
 
 // Search for a given character inside the ring buffer, results are 0 based
-unsigned char ring_searchChr(Ring_t *Ring, unsigned char cSearch, unsigned char bHaltNull);
+unsigned char ring_findChr(Ring_t *Ring, unsigned char cSearch, unsigned char bHaltNull);
+
+void ring_dump(Ring_t *Ring, unsigned char * pStr);
 
 

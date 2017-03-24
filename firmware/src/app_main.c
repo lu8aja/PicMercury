@@ -80,27 +80,31 @@ inline void APP_init(void){
         SoftSerial_init(&SoftSerial,
             CFG_SOFTSERIAL_TX_Port,
             CFG_SOFTSERIAL_TX_Pin,
-            CFG_SOFTSERIAL_TX_Invert,
+            CFG_SOFTSERIAL_TX_InvertData,
+            CFG_SOFTSERIAL_TX_InvertCtrl,
             CFG_SOFTSERIAL_RX_Port,
             CFG_SOFTSERIAL_RX_Pin,
-            CFG_SOFTSERIAL_RX_Invert,
-            CFG_SOFTSERIAL_HalfDuplex,
-            CFG_SOFTSERIAL_Transcode
+            CFG_SOFTSERIAL_RX_InvertData,
+            CFG_SOFTSERIAL_RX_InvertCtrl,
+            CFG_SOFTSERIAL_HalfDuplex
         );
         
-        SoftSerial_enable(&SoftSerial,
+        SoftSerial_config(&SoftSerial,
             0,
             CFG_SOFTSERIAL_RX_DataBits,
             CFG_SOFTSERIAL_RX_StopBits,
-            CFG_SOFTSERIAL_RX_Period
+            CFG_SOFTSERIAL_RX_Period,
+            CFG_SOFTSERIAL_Transcode
         );
     #endif
     
     #if defined(LIB_I2C)
-        #if defined(DEVICE_CONSOLE)
+        #if defined(DEVICE_I2C_MASTER)
             I2C_Master_init();
         #else
-            #if defined(DEVICE_PUNCHER)
+            #if defined(DEVICE_CONSOLE)
+                I2C.Address = CFG_I2C_ADDRESS_CONSOLE;
+            #elif defined(DEVICE_PUNCHER)
                 I2C.Address = CFG_I2C_ADDRESS_PUNCHER;
             #elif defined(DEVICE_READER)
                 I2C.Address = CFG_I2C_ADDRESS_READER;
@@ -124,8 +128,18 @@ inline void APP_init(void){
 
 void interrupt APP_interrupt_high(void){             // High priority interrupt
 	// CLOCK: Timer0 overflow int
+    
+    #if defined(LIB_I2C)
+    if (I2C_InterruptFlag){
+        #if defined(DEVICE_I2C_MASTER)
+            I2C_Master_interrupt();
+        #else
+            I2C_Slave_interrupt();
+        #endif
+    }
+    #endif
+    
 	if (INTCONbits.TMR0IF){
-        
         // MUSIC
         #ifdef LIB_MUSIC
             Music_tick();
@@ -172,6 +186,10 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
                 Program_tick();
             #endif
 
+            #if defined(LIB_I2C)
+                I2C_tick();
+            #endif
+
             // MASTER NOTIFY
             if (MasterClock.NotifyCounter){
                 MasterClock.NotifyCounter--;
@@ -187,18 +205,9 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
             }
         }
         
+            
 		INTCONbits.TMR0IF = 0;
 	}
-    
-    #if defined(LIB_I2C)
-    if (I2C_InterruptFlag){
-        #if defined(DEVICE_CONSOLE)
-            I2C_Master_interrupt();
-        #else
-            I2C_Slave_interrupt();
-        #endif
-    }
-    #endif
     
     // USB
     if (USB_InterruptFlag){
@@ -237,7 +246,7 @@ inline void APP_main(){
     #endif
 
     if (MasterClock.NotifyNow){
-        clock2str(sStr1, MasterClock.NotifyNow);
+        Clock_getStr(sStr1, MasterClock.NotifyNow);
         printReply(0, 3, "UPTIME", sStr1);
         MasterClock.NotifyNow = 0;
     }
@@ -259,8 +268,8 @@ inline void APP_main(){
 
     // I2C
     #ifdef LIB_I2C
-        #ifdef DEVICE_CONSOLE
-            //I2C_Master_service();
+        #ifdef DEVICE_I2C_MASTER
+            I2C_Master_service();
         #else
             I2C_Slave_service();
         #endif
@@ -396,6 +405,10 @@ void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
         Puncher_cmd(pBuffer, ptrArgs);
     }
     #endif
+    else if (strequal(ptrCommand, "heap")){
+        sprintf(sReply, "%u of %u", Heap_Next - Heap, sizeof(Heap));
+        printReply(pBuffer, 1, "HEAP", sReply);
+    }
     // VERSION
     else if (strequal(ptrCommand, "version")){
         printReply(pBuffer, 1, "VERSION", txtVersion);

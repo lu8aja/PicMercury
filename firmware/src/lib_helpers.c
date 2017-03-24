@@ -7,12 +7,10 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "usb/usb.h"
-#include "usb/usb_device_cdc.h"
 
-#include "lib_ring.h"
+#include "lib_helpers.h"
+
 #include "app_globals.h"
-#include "app_main.h"
 #include "app_io.h"
 #include "service_usb.h"
 
@@ -23,35 +21,7 @@
     #include "service_music.h"
 #endif
 
-
-// Helper functions
-void          printReply(Ring_t * pBuffer, const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply);
-void          putch(const unsigned char byte);
-void          print(const unsigned char *pStr);
-unsigned long str2long(const char *sStr);
-void          byte2hex(const char cChar, char *sStr1);
-void          int2hex(unsigned int iNum, char *sStr1);
-void          str2hex(const char *sStr2, char *sStr1);
-inline void   str2lower(unsigned char *pStr);
-inline void   str2upper(unsigned char *pStr);
-void          byte2binstr(char *sStr, unsigned char iNum);
-void          int2binstr(char *sStr, unsigned int iNum);
-
-unsigned long Clock_getTime(void);
-void          clock2str(char *sStr, unsigned long ms);
-void          any2binstr(char *sStr, unsigned long iNum, unsigned char nLen);
-unsigned char hexstr2byte(unsigned char *sStr);
-unsigned char hex2byte(unsigned char c);
-
-inline void   str_append(unsigned char *pStr, unsigned char cChar);
-void          str_append_safe(unsigned char *pStr, unsigned char cChar, unsigned char nMaxlen);
-
-// EEPROM
-unsigned char EEPROM_read(unsigned char addr);
-void          EEPROM_write(unsigned char addr, unsigned char val);
-
-
-
+/*** STDIO ***/
 void printReply(Ring_t * pBuffer, const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply){
     if (pBuffer){
         switch (nType){
@@ -143,7 +113,77 @@ void print(const unsigned char *pStr){
     }
 }
 
+/*** STRING ***/
 
+
+inline void str_append(unsigned char *pStr, unsigned char cChar){
+    // Only use this one if you are sure you will not overrun!
+    while (*pStr) pStr++;
+    *pStr = cChar;
+    pStr++;
+    *pStr  = 0;
+}
+
+void str_append_safe(unsigned char *pStr, unsigned char cChar, unsigned char nMaxLen){
+    if (nMaxLen && (strlen(pStr) + 1) >= nMaxLen){
+        // Silently fail to add because we're over the allocated buffer space
+        return;
+    }
+    
+    pStr += strlen(pStr);
+    *pStr = cChar;
+    pStr++;
+    *pStr  = 0;
+}
+
+void str_dump(unsigned char *pDumped, const unsigned char *pStr, unsigned char nLen){
+    unsigned char n = 0;
+    
+    if (pStr == NULL){
+        *pDumped = 'X';
+        *pDumped++;
+        *pDumped = 0;
+        return;
+    }
+    
+    if (!nLen){
+        while (*pStr){ nLen++; pStr++; }
+        pStr -= nLen;
+    }
+    
+    while (nLen--){
+       *pDumped = tohex(*pStr >> 4);
+        pDumped++;
+        
+       *pDumped = tohex(*pStr & 0x0f);		
+        pDumped++;
+        
+       *pDumped = ' ';
+        pDumped++;
+
+       *pDumped = *pStr < 32 ? 254 : *pStr;
+        pDumped++;
+        
+        pStr++;
+        
+       *pDumped = ' ';
+        pDumped++;
+        
+        n += 5;
+        if (n >= 80){
+           *pDumped = '\r';
+            pDumped++;
+           *pDumped = '\n';
+            pDumped++;
+            n -= 82;
+        }
+    }
+    
+    *pDumped = 0;
+}
+
+
+/*** CONVERSIONS ***/
 void byte2hex(const char cChar, char *sStr1){
     unsigned char x;
 	x = (cChar & 0xF0) >> 4;
@@ -191,6 +231,7 @@ void str2hex(const char *sStr2, char *sStr1){
 } //end str2hex
 
 inline void str2lower(unsigned char *pStr){
+    if (pStr == NULL) return;
     while (*pStr){
         // if (*pStr >= 'A' && *pStr <= 'Z') *pStr =  *pStr | 0x60;
         *pStr =  tolower(*pStr);
@@ -199,6 +240,7 @@ inline void str2lower(unsigned char *pStr){
 }
 
 inline void str2upper(unsigned char *pStr){
+    if (pStr == NULL) return;
     while (*pStr){
         // if (*pStr >= 'a' && *pStr <= 'z') *pStr =  *pStr & 0x9f;
         *pStr =  toupper(*pStr);
@@ -247,6 +289,27 @@ void any2binstr(char *sStr, unsigned long iNum, unsigned char nLen){
     while (nLen);
 }
 
+
+unsigned char hexstr2byte(unsigned char *sStr){
+    return (hex2byte(*sStr) << 4) | hex2byte(*(sStr + 1));
+}
+
+unsigned char hex2byte(unsigned char c){
+    if (c >= 'a' && c <= 'f'){
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F'){
+        return c - 'A' + 10;
+    }
+    if (c >= '0' && c <= '9'){
+        return c - '0';
+    }
+    return 0;
+}
+
+
+/*** CLOCK ***/
+
 unsigned long Clock_getTime(void){
     unsigned char tick = MasterClock.Tick;
     unsigned long ms   = MasterClock.MS;
@@ -258,7 +321,7 @@ unsigned long Clock_getTime(void){
 }
 
 
-void clock2str(char *sStr, unsigned long ms){
+void Clock_getStr(char *sStr, unsigned long ms){
 	unsigned char tick, len, i, h;
     
     if (!ms){
@@ -288,44 +351,7 @@ void clock2str(char *sStr, unsigned long ms){
 	       // long 4 byte unsigned, expressing ms, will wrap at arround day 49, so no more than 2 digits for the day are needed
 }
 
-unsigned char hexstr2byte(unsigned char *sStr){
-    return (hex2byte(*sStr) << 4) | hex2byte(*(sStr + 1));
-}
-
-unsigned char hex2byte(unsigned char c){
-    if (c >= 'a' && c <= 'f'){
-        return c - 'a' + 10;
-    }
-    if (c >= 'A' && c <= 'F'){
-        return c - 'A' + 10;
-    }
-    if (c >= '0' && c <= '9'){
-        return c - '0';
-    }
-    return 0;
-}
-
-inline void str_append(unsigned char *pStr, unsigned char cChar){
-    // Only use this one if you are sure you will not overrun!
-    while (*pStr) pStr++;
-    *pStr = cChar;
-    pStr++;
-    *pStr  = 0;
-}
-
-void str_append_safe(unsigned char *pStr, unsigned char cChar, unsigned char nMaxLen){
-    if (nMaxLen && (strlen(pStr) + 1) >= nMaxLen){
-        // Silently fail to add because we're over the allocated buffer space
-        return;
-    }
-    
-    pStr += strlen(pStr);
-    *pStr = cChar;
-    pStr++;
-    *pStr  = 0;
-}
-
-
+/*** EEPROM ***/
 unsigned char EEPROM_read(unsigned char addr){
     EEADR = addr;
     EECON1bits.CFGS = 0;
