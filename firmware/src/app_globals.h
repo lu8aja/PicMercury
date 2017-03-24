@@ -18,18 +18,6 @@
  MAIN GLOBALS USED BY APP
  *******************************************************************/
 
-/** MACROS ******************************************************/
-/* Bit Operation macros */
-#define bit_set(A,n)           ( A |=   (1 << n))                            // Set bit number n in byte b 
-#define bit_clear(A,n)         ( A &= (~(1 << n)))                           // Clear bit number n in byte b
-#define bit_flip(A,n)          ( A ^=   (1 << n))                            // Flip bit number n in byte b 
-#define bit_read(A,n)          ((A  &   (1 << n)) >> n)                      // Read bit number n in byte b 
-#define bit_write(A,n,v)       (v ? (A |= (1 << n)) : (A &= (~((1 << n)))))  // Write value v to bit n of A 
-#define bit_mask_write(A,m,v)  (v ? (A |= m) : (A &= (~m)))                  // According to v set or clear based upon a mask
-#define bit_is_set(A,n)        (A   & (1 << n))                              // Test if bit number n in byte b is set
-#define bit_is_clear(A,n)      (!(A & (1 << n)))                             // Test if bit number n in byte b is clear
-#define reciprocal(a, fp)      ( (( 1 << fp) + a - 1) / a )                  // Reciprocal 1/x without using floats
-
 /** CONSTANTS ******************************************************/
 extern const char txtVersion[];
 extern const char txtCrLf[];

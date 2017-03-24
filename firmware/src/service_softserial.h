@@ -102,6 +102,7 @@ inline void          SoftSerial_tick(SoftSerial_t *pSerial);
 inline void          SoftSerial_service(SoftSerial_t *pSerial);
 inline void          SoftSerial_service_rx(SoftSerial_t *pSerial);
 inline void          SoftSerial_service_tx(SoftSerial_t *pSerial);
-void                 SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs);
 inline unsigned char SoftSerial_read(SoftSerial_t *pSerial, unsigned char *pStr, unsigned char nMaxLen);
 inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr);
+inline unsigned char SoftSerial_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs);
+void                 SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs);

@@ -368,6 +368,15 @@ inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr
     return ring_append(pSerial->Output->Ring, pStr);
 }
 
+
+inline unsigned char SoftSerial_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+    if (strequal(pCommand, "serial")){
+        SoftSerial_cmd(pBuffer, pArgs);
+        return 1;
+    }
+    return 0;
+}
+
 void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     bool bShowStatus = true;

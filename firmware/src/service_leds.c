@@ -227,7 +227,56 @@ void Leds_updateLeds_original(void){
 
     // If the led is the same one, we do not do anything as everything should already be set
 }
- * */
+ */
+
+void Leds_updateUsb(void){
+    static uint16_t ledCount = 0;
+
+    if(USB_isDeviceSuspended() == true){
+        bit_clear(MasterLeds.Status, LED_USB);
+        return;
+    }
+
+    switch(USB_getDeviceState()){
+        case CONFIGURED_STATE:
+            /* We are configured.  Blink fast. On for 75ms, off for 75ms, then reset/repeat. */
+            if(ledCount == 1){
+                bit_set(MasterLeds.Status, LED_USB);
+            }
+            else if(ledCount == 75){
+                bit_clear(MasterLeds.Status, LED_USB);
+            }
+            else if(ledCount > 150){
+                ledCount = 0;
+            }
+            break;
+        default:
+            /* We aren't configured yet, but we aren't suspended so let's blink with
+             * a slow pulse. On for 50ms, then off for 950ms, then reset/repeat. */
+            if(ledCount == 1){
+                bit_set(MasterLeds.Status, LED_USB);
+            }
+            else if(ledCount == 50){
+                bit_clear(MasterLeds.Status, LED_USB);
+            }
+            else if(ledCount > 950){
+                ledCount = 0;
+            }
+            break;
+    }
+
+    /* Increment the millisecond counter. */
+    ledCount++;
+}
+
+
+inline unsigned char Leds_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+    if (strequal(pCommand, "led") || strequal(pCommand, "l")){
+        Leds_cmd(pBuffer, pArgs);
+        return 1;
+    }
+    return 0;
+}
 
 
 void Leds_cmd(Ring_t * pBuffer, unsigned char *pArgs){
@@ -299,44 +348,4 @@ void Leds_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     strcat(sReply, sStr1);
     
     printReply(pBuffer, bOK, "LED", sReply);
-}
-
-void Leds_updateUsb(void){
-    static uint16_t ledCount = 0;
-
-    if(USB_isDeviceSuspended() == true){
-        bit_clear(MasterLeds.Status, LED_USB);
-        return;
-    }
-
-    switch(USB_getDeviceState()){
-        case CONFIGURED_STATE:
-            /* We are configured.  Blink fast. On for 75ms, off for 75ms, then reset/repeat. */
-            if(ledCount == 1){
-                bit_set(MasterLeds.Status, LED_USB);
-            }
-            else if(ledCount == 75){
-                bit_clear(MasterLeds.Status, LED_USB);
-            }
-            else if(ledCount > 150){
-                ledCount = 0;
-            }
-            break;
-        default:
-            /* We aren't configured yet, but we aren't suspended so let's blink with
-             * a slow pulse. On for 50ms, then off for 950ms, then reset/repeat. */
-            if(ledCount == 1){
-                bit_set(MasterLeds.Status, LED_USB);
-            }
-            else if(ledCount == 50){
-                bit_clear(MasterLeds.Status, LED_USB);
-            }
-            else if(ledCount > 950){
-                ledCount = 0;
-            }
-            break;
-    }
-
-    /* Increment the millisecond counter. */
-    ledCount++;
 }

@@ -139,5 +139,6 @@ inline void   I2C_tick(void);
 unsigned char I2C_send(unsigned char idBuffer, unsigned char addr, const unsigned char *pCommand);
 void          I2C_reportResult(unsigned char idBuffer, unsigned char *pStr);
 void          I2C_discardMsg(const unsigned char *pMsg);
+inline unsigned char I2C_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs);
 void          I2C_cmd(Ring_t * pBuffer, unsigned char *pArgs);
 

@@ -34,4 +34,5 @@ void          Puncher_init(unsigned char bEnabled, unsigned char nMode);
 inline void   Puncher_tick(void);
 void          Puncher_service(void);
 inline unsigned char Puncher_write(unsigned char *pStr);
+inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs);
 void          Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs);

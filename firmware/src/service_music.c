@@ -248,6 +248,16 @@ void Music_getStatus(unsigned char *pStatus){
     }
 }
 
+
+inline unsigned char Music_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+    if (strequal(pCommand, "music") || strequal(pCommand, "tone") || strequal(pCommand, "t")){
+        Music_cmd(pBuffer, pArgs);
+        return 1;
+    }
+    return 0;
+}
+
+
 void Music_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;

@@ -284,11 +284,13 @@ inline void APP_main(){
 
 void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
     unsigned char *ptrCommand;
-    unsigned char *ptrArgs;
+    unsigned char *ptrArgs    = NULL;
+    unsigned char nExecuted   = 0;
     unsigned char n;
     unsigned char val;
 
-    if (pLine[0] == 0x00){
+    if (pLine[0] == 0x00 || pLine == NULL){
+        // Empty line
         return;
     }
    
@@ -296,7 +298,6 @@ void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
     
     // Get the command
     ptrCommand = strtok(pLine, txtWhitespace);
-    ptrArgs = NULL;
     // Get the arguments
     if (ptrCommand != NULL){
         ptrArgs = &pLine[strlen(ptrCommand) + 1];
@@ -306,114 +307,90 @@ void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
     
     str2lower(ptrCommand);    
 
-    if (ptrCommand == NULL){    
+    if (ptrCommand == NULL){ 
+        // Likely a line starting with space
         printReply(pBuffer, 0, txtErrorMissingCommand, ptrCommand);
+        return;
     }
-    // PING
-    else if (strequal(ptrCommand, "ping")){
-        APP_CMD_ping(pBuffer, ptrArgs);
-    }
-    // UPTIME
-	else if (strequal(ptrCommand, "uptime")){
-        APP_CMD_uptime(pBuffer, ptrArgs);
-	}
-    // DEBUG
-    else if (strequal(ptrCommand, "debug")){
-        APP_CMD_debug(pBuffer, ptrArgs);
-    }
-    // READ
-    else if (strequal(ptrCommand, "read") || strequal(ptrCommand, "r")){
-        APP_CMD_read(pBuffer, ptrArgs);
-    }
-    // WRITE
-    else if (strequal(ptrCommand, "write") || strequal(ptrCommand, "w")){
-        APP_CMD_write(pBuffer, ptrArgs);
-    }
-/*
-    // VAR
-    else if (strequal(ptrCommand, "var")){
-        //APP_CMD_var(ptrArgs);
-    }
-     * */
-    // MEM
-    /*
-    else if (strequal(ptrCommand, "mem")){
-        APP_CMD_mem(ptrArgs);
-    }
-     */
-    // DUMP
-    /*
-    else if (strequal(ptrCommand, "dump")){
-        APP_CMD_dump(ptrArgs);
-    }
-     * */
+
+
+    #ifdef LIB_CMD
+        if (!nExecuted) nExecuted = Cmd_checkCmd(pBuffer, ptrCommand, ptrArgs);
+    #endif
+
+    #ifdef LIB_I2C
+        if (!nExecuted) nExecuted = I2C_checkCmd(pBuffer, ptrCommand, ptrArgs);
+    #endif
 
     #ifdef LIB_SOFTSERIAL
-    else if (strequal(ptrCommand, "serial")){
-        SoftSerial_cmd(pBuffer, ptrArgs);
-    }
+        if (!nExecuted) nExecuted = SoftSerial_checkCmd(pBuffer, ptrCommand, ptrArgs);
     #endif
 
-    // UART
-    else if (strequal(ptrCommand, "uart")){
-//        MasterSerialOut = (unsigned char) atoi(ptrArgs);
-    }
-    // PROGRAM
-    #if defined(LIB_PROGRAM)
-    // DELAY
-    else if (strequal(ptrCommand, "delay") || strequal(ptrCommand, "d")){
-        MasterProgram.Tick = atol(ptrArgs);
-    }
-    // RUN
-    else if (strequal(ptrCommand, "run")){
-        Program_cmd(pBuffer, ptrArgs);
-    }
-    #endif
-    // I2C
-    #ifdef LIB_I2C
-    else if (strequal(ptrCommand, "i2c")){
-        I2C_cmd(pBuffer, ptrArgs);
-    }
-    #endif
-    // MONITOR
-    #ifdef LIB_MONITOR
-    else if (strequal(ptrCommand, "monitor")){
-        Monitor_cmd(pBuffer, ptrArgs);
-    }
-    #endif
-    // LED
-    #ifdef LIB_LEDS
-    else if (strequal(ptrCommand, "led") || strequal(ptrCommand, "l")){
-        Leds_cmd(pBuffer, ptrArgs);
-    }
-    #endif
-    // KEYS
-    #ifdef LIB_KEYS
-    else if (strequal(ptrCommand, "keys")){
-        Keys_cmd(pBuffer, ptrArgs);
-    }
-    #endif
-    // MUSIC
-    #ifdef LIB_MUSIC
-    else if (strequal(ptrCommand, "music") || strequal(ptrCommand, "tone") || strequal(ptrCommand, "t")){
-        Music_cmd(pBuffer, ptrArgs);
-    }
-    #endif
-    // PUNCH
     #ifdef LIB_PUNCHER
-    else if (strequal(ptrCommand, "punch")){
-        Puncher_cmd(pBuffer, ptrArgs);
-    }
+        if (!nExecuted) nExecuted = Puncher_checkCmd(pBuffer, ptrCommand, ptrArgs);
     #endif
-    else if (strequal(ptrCommand, "heap")){
-        sprintf(sReply, "%u of %u", Heap_Next - Heap, sizeof(Heap));
-        printReply(pBuffer, 1, "HEAP", sReply);
+
+    #ifdef LIB_MUSIC
+        if (!nExecuted) nExecuted = Music_checkCmd(pBuffer, ptrCommand, ptrArgs);
+    #endif
+
+    #ifdef LIB_LEDS
+        if (!nExecuted) nExecuted = Leds_checkCmd(pBuffer, ptrCommand, ptrArgs);
+    #endif
+
+    #ifdef LIB_KEYS
+        if (!nExecuted) nExecuted = Keys_checkCmd(pBuffer, ptrCommand, ptrArgs);
+    #endif
+
+    #ifdef LIB_MONITOR
+        if (!nExecuted) nExecuted = Monitor_checkCmd(pBuffer, ptrCommand, ptrArgs);
+    #endif
+
+    #ifdef LIB_PROGRAM
+        if (!nExecuted) nExecuted = Program_checkCmd(pBuffer, ptrCommand, ptrArgs);
+    #endif
+
+    if (!nExecuted){
+        /* Non Library/Board dependent commands */
+
+        // VERSION
+        if (strequal(ptrCommand, "version") || strequal(ptrCommand, "ver")){
+            printReply(pBuffer, 1, "VERSION", txtVersion);
+            nExecuted = 1;
+        }
+        // HEAP
+        else if (strequal(ptrCommand, "heap")){
+            sprintf(sReply, "%u of %u", Heap_Next - Heap, sizeof(Heap));
+            printReply(pBuffer, 1, "HEAP", sReply);
+            nExecuted = 1;
+        }
+
+    /*
+        // VAR
+        else if (strequal(ptrCommand, "var")){
+            //APP_CMD_var(ptrArgs);
+        }
+         * */
+        // MEM
+        /*
+        else if (strequal(ptrCommand, "mem")){
+            APP_CMD_mem(ptrArgs);
+        }
+         */
+        // DUMP
+        /*
+        else if (strequal(ptrCommand, "dump")){
+            APP_CMD_dump(ptrArgs);
+        }
+        // UART
+        else if (strequal(ptrCommand, "uart")){
+    //        MasterSerialOut = (unsigned char) atoi(ptrArgs);
+        }
+*/
     }
-    // VERSION
-    else if (strequal(ptrCommand, "version")){
-        printReply(pBuffer, 1, "VERSION", txtVersion);
-    }
-    else {
+        
+    
+    if (!nExecuted){
         printReply(pBuffer, 0, txtErrorUnknownCommand, 0);
     }
 }

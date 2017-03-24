@@ -243,6 +243,14 @@ void Keys_getStatusReply(void){
     );
 }
 
+inline unsigned char Keys_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+    if (strequal(pCommand, "keys")){
+        Keys_cmd(pBuffer, pArgs);
+        return 1;
+    }
+    return 0;
+}
+
 
 void Keys_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;

@@ -2,75 +2,12 @@
 
 #include "app_globals.h"
 
-#define BOARD_XTAL_FREQ 20000000
-
-#define PIN_HOOT_OUT  LATCbits.LATC2
-#define PIN_HOOT_TRIS TRISCbits.RC2
-
-#define PIN_KEYS_OUT_0 LATEbits.LATE0 
-#define PIN_KEYS_OUT_1 LATEbits.LATE1 
-#define PIN_KEYS_OUT_2 LATEbits.LATE2 
-#define PIN_KEYS_OUT_3 LATCbits.LATC0 
-#define PIN_KEYS_OUT_4 LATCbits.LATC1
-
-#define PIN_KEYS_OUT_0_TRIS TRISEbits.RE0 
-#define PIN_KEYS_OUT_1_TRIS TRISEbits.RE1 
-#define PIN_KEYS_OUT_2_TRIS TRISEbits.RE2 
-#define PIN_KEYS_OUT_3_TRIS TRISCbits.RC0 
-#define PIN_KEYS_OUT_4_TRIS TRISCbits.RC1
-
-
-#define TTY_TX        TRISBbits.RB2        // TX Pin
-#define SOFTSERIAL_TX_TRIS   TRISBbits.RB2        // TX Tris
-#define TTY_RX        TRISBbits.RB2        // RX Pin
-#define SOFTSERIAL_RX_TRIS   TRISBbits.RB2        // RX Tris
-
-
-
-#define PIN_KEYS_IN      PORTD
-#define PIN_KEYS_IN_TRIS TRISD
-
-#define LEDS_ANODES          0b00111100
-#define LEDS_ANODES_SHIFT    2
-#define LEDS_ANODES_TRIS     TRISB
-#define LEDS_ANODES_LAT      LATB
-
-#define LEDS_CATHODES        0b00001111
-#define LEDS_CATHODES_SHIFT  0
-#define LEDS_CATHODES_TRIS   TRISA
-#define LEDS_CATHODES_LAT    LATA
-
-#define LED_USB    0x0f
-#define LED_ALARM  0x00
-
-#define CFG_I2C_ADDRESS_PUNCHER 2
-#define CFG_I2C_ADDRESS_READER  4
-#define CFG_I2C_ADDRESS_CRTS    8
-
-#define INPUT   1
-#define OUTPUT  0
-
-typedef struct {
-        volatile unsigned char *out_port;
-        unsigned char out_bit;
-        volatile unsigned char *in_port;
-        unsigned char in_bit;
-} button_map_t;
-
-#define MasterButtonsMapLen 3
 button_map_t MasterButtonsMap[] = {
     {&LATC, 0, &PORTD, 0}, // C0/D0 CLR_TAPE
     {&LATC, 0, &PORTD, 1}, // C0/D1 INITIAL_TRANSFER
     {&LATC, 1, &PORTD, 1}  // C1/D1 PREPULSE
 };
 
-#define MasterButtonsHistoryBits 7
-typedef struct {
-        unsigned char status:1;
-        unsigned char history:7;
-} button_status_t;
-
-#define MasterButtonsLen 3
 button_status_t MasterButtons[] = {
     {0, 0}, // C0/D0 CLR_TAPE
     {0, 0}, // C0/D1 INITIAL_TRANSFER
@@ -100,31 +37,3 @@ const unsigned char MasterLedMap[] = {
     0b01110111, // F B5A3 1000   1000 LED_WRITE_CURRENT 
 };
 */
-
-
-
-
-void pin_write(unsigned char nPort, unsigned char nBit, unsigned char nVal);
-unsigned char pin_read(unsigned char nPort, unsigned char nBit);
-void pin_cfg(unsigned char nPort, unsigned char nBit, unsigned char nDirection);
-
-/*      A   B   C   D   E  
- TRIS   F92 F93 F94 F95 F96
- LAT    F89 F8A F8B F8c F8D
- PORT   F80 F81 F82 F83 F84
- */
-
-void pin_write(unsigned char nPort, unsigned char nBit, unsigned char nVal){
-    volatile unsigned char *pReg = &LATA - 1 + nPort;
-    bit_write(*pReg, nBit, nVal);
-}
-
-unsigned char pin_read(unsigned char nPort, unsigned char nBit){
-    volatile unsigned char *pReg = &PORTA - 1 + nPort;
-    return bit_read(*pReg, nBit);
-}
-
-void pin_cfg(unsigned char nPort, unsigned char nBit, unsigned char nDirection){
-    volatile unsigned char *pReg = &TRISA - 1 + nPort;
-    bit_write(*pReg, nBit, nDirection);
-}

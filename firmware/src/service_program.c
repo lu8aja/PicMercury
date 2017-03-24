@@ -1,6 +1,4 @@
 
-#define LIB_PROGRAM
-
 #include <xc.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -10,23 +8,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include "service_program.h"
 #include "app_programs.h"
-
-#include "app_globals.h"
-#include "lib_helpers.h"
-#include "app_main.h"
-
-
-typedef struct {
-    // Configs
-    unsigned char Enabled;      // 0 = Off / 1 = On
-    unsigned char Run;          // Program number being run
-    unsigned long Time;         // Default program step time (it can be changed via the wait cmd)
-    // Runtime
-    unsigned char Step;         // Current step in sequence
-    unsigned long Tick;         // Tick counter in ms Time..0
-} program_t;
-
 
 program_t MasterProgram;
 
@@ -89,6 +72,20 @@ inline void Program_service(void){
             }
         }
     }
+}
+
+
+
+inline unsigned char Program_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+    if (strequal(pCommand, "run")){
+        Program_cmd(pBuffer, pArgs);
+        return 1;
+    }
+    else if (strequal(pCommand, "delay") || strequal(pCommand, "d")){
+        MasterProgram.Tick = atol(pArgs);
+        return 1;
+    }
+    return 0;
 }
 
 

@@ -18,10 +18,35 @@
     #include "service_music.h"
 #endif
 
-//#include "lib_helpers.h"
+inline unsigned char Cmd_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+    // PING
+    if (strequal(pCommand, "ping")){
+        APP_CMD_ping(pBuffer, pArgs);
+    }
+    // UPTIME
+	else if (strequal(pCommand, "uptime")){
+        APP_CMD_uptime(pBuffer, pArgs);
+	}
+    // DEBUG
+    else if (strequal(pCommand, "debug")){
+        APP_CMD_debug(pBuffer, pArgs);
+    }
+    // READ
+    else if (strequal(pCommand, "read") || strequal(pCommand, "r")){
+        APP_CMD_read(pBuffer, pArgs);
+    }
+    // WRITE
+    else if (strequal(pCommand, "write") || strequal(pCommand, "w")){
+        APP_CMD_write(pBuffer, pArgs);
+    }
+    else{
+        return 0;
+    }
+    return 1;
+}
 
-//#include "app_programs.h"
 
+    
 /** FUNCTIONS *******************************************************/
 void APP_CMD_ping(Ring_t *pBuffer, unsigned char *pArgs){
     printReply(pBuffer, 1, "PONG", pArgs);

@@ -376,3 +376,26 @@ void EEPROM_write(unsigned char addr, unsigned char val){
     INTCONbits.GIE = 1;
     EECON1bits.WREN = 0;
 }
+
+/*** PIN I/O ***/
+
+/*      A   B   C   D   E  
+ TRIS   F92 F93 F94 F95 F96
+ LAT    F89 F8A F8B F8c F8D
+ PORT   F80 F81 F82 F83 F84
+ */
+
+void pin_write(unsigned char nPort, unsigned char nBit, unsigned char nVal){
+    volatile unsigned char *pReg = &LATA - 1 + nPort;
+    bit_write(*pReg, nBit, nVal);
+}
+
+unsigned char pin_read(unsigned char nPort, unsigned char nBit){
+    volatile unsigned char *pReg = &PORTA - 1 + nPort;
+    return bit_read(*pReg, nBit);
+}
+
+void pin_cfg(unsigned char nPort, unsigned char nBit, unsigned char nDirection){
+    volatile unsigned char *pReg = &TRISA - 1 + nPort;
+    bit_write(*pReg, nBit, nDirection);
+}

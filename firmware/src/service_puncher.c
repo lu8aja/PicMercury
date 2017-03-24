@@ -110,6 +110,14 @@ inline unsigned char Puncher_write(unsigned char *pStr){
 }
 
 
+inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+    if (strequal(pCommand, "punch")){
+        Puncher_cmd(pBuffer, pArgs);
+        return 1;
+    }
+    return 0;
+}
+
 void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;

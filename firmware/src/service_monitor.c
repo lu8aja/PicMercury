@@ -100,6 +100,13 @@ void Monitor_checkPins(unsigned char cPortName){
     }
 }
 
+inline unsigned char Monitor_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+    if (strequal(pCommand, "monitor")){
+        Monitor_cmd(pBuffer, pArgs);
+        return 1;
+    }
+    return 0;
+}
 
 void Monitor_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
