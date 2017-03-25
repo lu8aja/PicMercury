@@ -30,9 +30,9 @@
 
 
     typedef struct {
-            volatile unsigned char *out_port;
+            unsigned char out_port;
             unsigned char out_bit;
-            volatile unsigned char *in_port;
+            unsigned char in_port;
             unsigned char in_bit;
     } button_map_t;
 

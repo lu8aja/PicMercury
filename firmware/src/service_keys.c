@@ -123,13 +123,13 @@ void Keys_checkButtons(void){
     }
     
     for (nBtn = 0; nBtn < MasterButtonsMapLen; nBtn++) {
-        bit_set(*MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit);
+        pin_write(MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit, 1);
         
-        n = bit_read(*MasterButtonsMap[nBtn].in_port, MasterButtonsMap[nBtn].in_bit);
+        n = pin_read(MasterButtonsMap[nBtn].in_port, MasterButtonsMap[nBtn].in_bit);
         
         bit_write(MasterButtons[nBtn].history, MasterKeys.Bit, n);
         
-        bit_clear(*MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit);
+        pin_write(MasterButtonsMap[nBtn].out_port, MasterButtonsMap[nBtn].out_bit, 0);
 
         // byte2binstr(sStr5, MasterButtons[nBtn].history);
         // printf("!BTN%u %u %u %s\r\n", nBtn, MasterKeys.Bit, n, sStr5);
@@ -170,13 +170,13 @@ void Keys_checkButtons(void){
         Keys_getStatusReply();
         printReply(0, 3, "STATUS", sReply);
 
-        //#if defined(LIB_PROGRAM)
+        #ifdef LIB_PROGRAM
         if (MasterKeys.Run && MasterKeys.Address){
             unsigned char s[5];
             sprintf(s, "%u", (MasterKeys.Address >> 2) & 0x07);
             Program_cmd(0, s);
         }
-        //#endif
+        #endif
     }
 }
 

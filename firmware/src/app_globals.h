@@ -11,8 +11,10 @@
 // Ring & Heap libraries
 #include "lib_ring.h"
 
-// Thes ehelpers should be available everywhere
+// These helpers should be available everywhere
 #include "lib_helpers.h"
+
+#include "app_io.h"
 
 /********************************************************************
  MAIN GLOBALS USED BY APP

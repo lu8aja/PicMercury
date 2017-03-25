@@ -3,9 +3,9 @@
 #include "app_globals.h"
 
 button_map_t MasterButtonsMap[] = {
-    {&LATC, 0, &PORTD, 0}, // C0/D0 CLR_TAPE
-    {&LATC, 0, &PORTD, 1}, // C0/D1 INITIAL_TRANSFER
-    {&LATC, 1, &PORTD, 1}  // C1/D1 PREPULSE
+    {3, 0, 4, 0}, // C0/D0 CLR_TAPE
+    {3, 0, 4, 1}, // C0/D1 INITIAL_TRANSFER
+    {3, 1, 4, 1}  // C1/D1 PREPULSE
 };
 
 button_status_t MasterButtons[] = {
