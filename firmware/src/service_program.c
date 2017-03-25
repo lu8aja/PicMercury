@@ -20,8 +20,8 @@ inline void Program_init(void){
     MasterProgram.Run     = 4;    // Program number being run
     MasterProgram.Time    = 1000; // Default program step time (it can be changed via the wait cmd)
     // Runtime
-    MasterProgram.Tick    = 0;    // Current step in sequence
-    MasterProgram.Step    = 0;    // Tick counter in ms Time..0
+    MasterProgram.Tick    = 0;    // Tick counter in ms Time..0
+    MasterProgram.Step    = 0;    // Current step in sequence
 }
 
 
@@ -39,36 +39,62 @@ inline void Program_service(void){
         }
 
         if (!MasterProgram.Tick){
-            const unsigned char *pProgram = MasterPrograms[MasterProgram.Run];
-            pProgram += MasterProgram.Step;
-            
-            if (MasterProgram.Enabled == 2){
-                MasterProgram.Step    = 0;
-                MasterProgram.Enabled = 1;
-            }
-            
-            if (!strlen(pProgram)){
-                MasterProgram.Enabled = 0;
-                printReply(0, 3, "RUN", "Done!");
-            }
-            else {
-                MasterProgram.Step += strlen(pProgram) + 1;
-            }
-            
-            // Next tone
-            if (MasterProgram.Enabled){
-                MasterProgram.Tick = MasterProgram.Time;
+            if (MasterProgram.Type == 0){
+                const unsigned char *pProgram = MasterPrograms[MasterProgram.Run];
+                pProgram += MasterProgram.Step;
 
-                sprintf(sReply, "#%02u s:%02u T:%02lu", 
-                    MasterProgram.Run,
-                    MasterProgram.Step,
-                    MasterProgram.Tick);
+                if (MasterProgram.Enabled == 2){
+                    MasterProgram.Step    = 0;
+                    MasterProgram.Enabled = 1;
+                }
 
-                printReply(0, 3, "RUN", sReply);
+                if (!strlen(pProgram)){
+                    MasterProgram.Enabled = 0;
+                    printReply(0, 3, "RUN", "Done!");
+                }
+                else {
+                    MasterProgram.Step += strlen(pProgram) + 1;
+                }
 
-                strcpy(bufCommand, pProgram);
-                APP_executeCommand(0, bufCommand);
-                bufCommand[0] = 0;
+                // Next tone
+                if (MasterProgram.Enabled){
+                    MasterProgram.Tick = MasterProgram.Time;
+
+                    sprintf(sReply, "#%02u s:%02u T:%02lu", 
+                        MasterProgram.Run,
+                        MasterProgram.Step,
+                        MasterProgram.Tick);
+
+                    printReply(0, 3, "RUN", sReply);
+
+                    strcpy(bufCommand, pProgram);
+                    APP_executeCommand(0, bufCommand);
+                    bufCommand[0] = 0;
+                }
+            }
+            else{
+                if (MasterProgram.Enabled == 2){
+                    MasterProgram.Step    = 0;
+                    MasterProgram.Enabled = 1;
+                }
+                
+                if (MasterProgram.Run == 0x80){
+                    MasterProgram.Step = Program_custom_isPrime(MasterProgram.Step);
+                }
+                else if (MasterProgram.Run == 0x40){
+                    MasterProgram.Step = Program_custom_calcPrimes(MasterProgram.Step);
+                }
+                else if (MasterProgram.Run == 0x20){
+                    MasterProgram.Step = Program_custom_doMusic(MasterProgram.Step);
+                }
+                
+                if (!MasterProgram.Step){
+                    MasterProgram.Enabled = 0;
+                }
+                else{
+                    MasterProgram.Tick = MasterProgram.Time;
+                }
+               
             }
         }
     }
@@ -76,7 +102,9 @@ inline void Program_service(void){
 
 
 
-inline unsigned char Program_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+
+
+inline unsigned char Program_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "run")){
         Program_cmd(pBuffer, pArgs);
         return 1;
@@ -110,14 +138,24 @@ void Program_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     else {
         n = atoi(pArg1);
         if (n >= MasterProgramsLen){
-            bOK = false;
-            strcat(sReply, txtErrorInvalidArgument);
+            if (n == 0x80 || n == 0x40 || n == 0x20){
+                MasterProgram.Tick    = 0;
+                MasterProgram.Step    = 0;
+                MasterProgram.Run     = n;
+                MasterProgram.Type    = 1;
+                MasterProgram.Enabled = 2;
+            }
+            else{
+                bOK = false;
+                strcat(sReply, txtErrorInvalidArgument);
+            }
         }
         else{
             if (bOK){
                 MasterProgram.Tick    = 0;
                 MasterProgram.Step    = 0;
                 MasterProgram.Run     = n;
+                MasterProgram.Type    = 0;
                 MasterProgram.Enabled = 2;
             }
         }

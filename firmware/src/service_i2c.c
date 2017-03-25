@@ -609,7 +609,7 @@ void I2C_dump(void){
     
 }
 
-inline unsigned char I2C_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+inline unsigned char I2C_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "i2c")){
         I2C_cmd(pBuffer, pArgs);
         return 1;

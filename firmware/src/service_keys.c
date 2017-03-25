@@ -171,9 +171,9 @@ void Keys_checkButtons(void){
         printReply(0, 3, "STATUS", sReply);
 
         #ifdef LIB_PROGRAM
-        if (MasterKeys.Run && MasterKeys.Address){
+        if (MasterKeys.Run && MasterKeys.Function){
             unsigned char s[5];
-            sprintf(s, "%u", (MasterKeys.Address >> 2) & 0x07);
+            sprintf(s, "%u", MasterKeys.Function >> 2);
             Program_cmd(0, s);
         }
         #endif
@@ -243,7 +243,7 @@ void Keys_getStatusReply(void){
     );
 }
 
-inline unsigned char Keys_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+inline unsigned char Keys_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "keys")){
         Keys_cmd(pBuffer, pArgs);
         return 1;

@@ -14,7 +14,7 @@
 #define PUNCHER_BIT_ADVANCE    0b10000000 // Bitmask for advancing the paper
 #define PUNCHER_BIT_GUIDE      0b01000000 // Bitmask for the guide hole
 
-#define PUNCHER_BUFFER_SIZE 16
+#define PUNCHER_BUFFER_SIZE 40
 
 typedef struct {
     unsigned char Enabled;     // 0 = Off / 1 = On
@@ -34,5 +34,5 @@ void          Puncher_init(unsigned char bEnabled, unsigned char nMode);
 inline void   Puncher_tick(void);
 void          Puncher_service(void);
 inline unsigned char Puncher_write(unsigned char *pStr);
-inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs);
+inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs);
 void          Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs);

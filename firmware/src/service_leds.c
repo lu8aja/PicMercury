@@ -64,7 +64,7 @@ const unsigned char MasterLedStepsLen = sizeof(MasterLedSteps) / sizeof(MasterLe
 inline void Leds_init(void){
     // Configs
     MasterLeds.Enabled    = 1;
-    MasterLeds.Time       = 2000;   // Ticks in ms to count while flashing led
+    MasterLeds.Time       = 40;   // Ticks in ms to count while flashing led
     MasterLeds.StepEnabled= 0;     // 0 = Off / 1 = On
     MasterLeds.StepRestart= 1;     // 0 = Disable when Time is reached / 1 = Restart 
     MasterLeds.StepTime   = 10000;  // Time in ms for each step
@@ -176,8 +176,9 @@ void Leds_updateLeds(void){
     byte2binstr(sStr2, LEDS_CATHODES_TRIS);
     byte2binstr(sStr3, LEDS_ANODES_TRIS);
     
-    printf("\r\n!OK LED A=%u K=%s TK=%s TA=%s\r\n", nCurrentAnode, sStr1, sStr2, sStr3);
-
+    if (MasterLeds.Debug){
+        printf("\r\n!OK LED A=%u K=%s TK=%s TA=%s\r\n", nCurrentAnode, sStr1, sStr2, sStr3);
+    }
 }
 
 /*
@@ -270,7 +271,7 @@ void Leds_updateUsb(void){
 }
 
 
-inline unsigned char Leds_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+inline unsigned char Leds_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "led") || strequal(pCommand, "l")){
         Leds_cmd(pBuffer, pArgs);
         return 1;
@@ -302,6 +303,10 @@ void Leds_cmd(Ring_t * pBuffer, unsigned char *pArgs){
         else if (strequal(pArg1, "off")){
             MasterLeds.Enabled = 0;
             strcpy(sReply, txtOff);
+        }
+        else if (strequal(pArg1, "debug")){
+            MasterLeds.Debug ^= 1;
+            strcpy(sReply, MasterLeds.Debug ? txtOn : txtOff);
         }
         else if (strequal(pArg1, "restart")){
             MasterLeds.StepRestart = (strcmp(pArg2, "on") == 0 || strcmp(pArg2, "1") == 0) ? 1 : 0;

@@ -57,8 +57,8 @@ extern i2c_t I2C;
 #endif
 
 // Slave pooling: Important, changing the addresses scheme, implies brutal changes to I2C.Slaves (Statuses))
-#define I2C_RecoveryTicks    250       // ms between Slaves pool contacts and for recovery from errors
-#define I2C_SeparationTicks  2         // ms between a Write and the next read
+#define I2C_RecoveryTicks    100       // ms between Slaves pool contacts and for recovery from errors
+#define I2C_SeparationTicks  2         // ms between a Write and the next read (not implemented)
 #define I2C_Pool_Min         0x10      // First Slave Address in pool
 #define I2C_Pool_Max         0x80      // Last Slave Address in pool
 #define I2C_Pool_next(a)     (a << 1)  // Delta function used when pooling slaves
@@ -139,6 +139,6 @@ inline void   I2C_tick(void);
 unsigned char I2C_send(unsigned char idBuffer, unsigned char addr, const unsigned char *pCommand);
 void          I2C_reportResult(unsigned char idBuffer, unsigned char *pStr);
 void          I2C_discardMsg(const unsigned char *pMsg);
-inline unsigned char I2C_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs);
+inline unsigned char I2C_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs);
 void          I2C_cmd(Ring_t * pBuffer, unsigned char *pArgs);
 

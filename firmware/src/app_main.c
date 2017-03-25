@@ -34,7 +34,7 @@
     #include "service_keys.h"      // Keyboard diode matrix
     #include "service_music.h"     // Tone generator
     // #include "service_uart.h"      // UART
-    #include "service_monitor.h"   // Pin monitor
+    //#include "service_monitor.h"   // Pin monitor
     #include "service_program.h"   // Program service
 #endif
 
@@ -312,7 +312,6 @@ void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
         printReply(pBuffer, 0, txtErrorMissingCommand, ptrCommand);
         return;
     }
-
 
     #ifdef LIB_CMD
         if (!nExecuted) nExecuted = Cmd_checkCmd(pBuffer, ptrCommand, ptrArgs);

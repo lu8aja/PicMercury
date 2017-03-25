@@ -18,7 +18,8 @@
     #include "service_music.h"
 #endif
 
-inline unsigned char Cmd_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+inline unsigned char Cmd_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
+
     // PING
     if (strequal(pCommand, "ping")){
         APP_CMD_ping(pBuffer, pArgs);

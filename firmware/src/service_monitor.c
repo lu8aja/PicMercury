@@ -100,7 +100,7 @@ void Monitor_checkPins(unsigned char cPortName){
     }
 }
 
-inline unsigned char Monitor_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+inline unsigned char Monitor_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "monitor")){
         Monitor_cmd(pBuffer, pArgs);
         return 1;

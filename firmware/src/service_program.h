@@ -17,6 +17,7 @@
 typedef struct {
     // Configs
     unsigned char Enabled;      // 0 = Off / 1 = On
+    unsigned char Type;
     unsigned char Run;          // Program number being run
     unsigned long Time;         // Default program step time (it can be changed via the wait cmd)
     // Runtime
@@ -34,6 +35,6 @@ inline void Program_tick(void);
 
 inline void Program_service(void);
 
-inline unsigned char Program_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs);
+inline unsigned char Program_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs);
 
 void Program_cmd(Ring_t * pBuffer, unsigned char *pArgs);

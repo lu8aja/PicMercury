@@ -369,7 +369,7 @@ inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr
 }
 
 
-inline unsigned char SoftSerial_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+inline unsigned char SoftSerial_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "serial")){
         SoftSerial_cmd(pBuffer, pArgs);
         return 1;

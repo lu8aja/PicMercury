@@ -23,7 +23,7 @@ void Puncher_init(unsigned char bEnabled, unsigned char nMode){
     MasterPuncher.TimeAdvance = 60;
     MasterPuncher.TimeGap2    = 5;
     
-    MasterPuncher.Output       = Transcoder_new(PUNCHER_BUFFER_SIZE);
+    MasterPuncher.Output      = Transcoder_new(PUNCHER_BUFFER_SIZE);
     MasterPuncher.Output->Configs = nMode;
     
     PUNCHER_TRIS = 0;
@@ -110,7 +110,7 @@ inline unsigned char Puncher_write(unsigned char *pStr){
 }
 
 
-inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs){
+inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "punch")){
         Puncher_cmd(pBuffer, pArgs);
         return 1;
@@ -132,7 +132,7 @@ void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     
     pArg1 = strtok(pArgs, txtWhitespace);
     
-    if (strequal(pArg1, "send")){
+    if (strequal(pArg1, "send") || strequal(pArg1, "s")){
         n = strlen(pArg1 + 5);
         if (!n){
             bOK = false;
@@ -146,14 +146,16 @@ void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
             MasterPuncher.Enabled = 1;
             m = Puncher_write(pArg1 + 5);
             if (m){
-                sprintf(sReply, "%u + %u + %u + %u = %u (%u)\r\n",
-                    MasterPuncher.TimePunch,
-                    MasterPuncher.TimeGap1,
-                    MasterPuncher.TimeAdvance,
-                    MasterPuncher.TimeGap2,
-                    (MasterPuncher.TimePunch + MasterPuncher.TimeGap1 + MasterPuncher.TimeAdvance + MasterPuncher.TimeGap2),
-                    n
-                );
+                if (strequal(pArg1, "send")){
+                    sprintf(sReply, "%u + %u + %u + %u = %u (%u)\r\n",
+                        MasterPuncher.TimePunch,
+                        MasterPuncher.TimeGap1,
+                        MasterPuncher.TimeAdvance,
+                        MasterPuncher.TimeGap2,
+                        (MasterPuncher.TimePunch + MasterPuncher.TimeGap1 + MasterPuncher.TimeAdvance + MasterPuncher.TimeGap2),
+                        n
+                    );
+                }
             }
             else{
                 bOK = false;

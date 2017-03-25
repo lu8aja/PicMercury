@@ -11,7 +11,7 @@
 #include "app_io.h"
 #include "app_main.h"
 
-inline unsigned char Cmd_checkCmd(Ring_t * pBuffer, unsigned char pCommand, unsigned char *pArgs);
+inline unsigned char Cmd_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs);
 // APP Commands
 void APP_CMD_ping(Ring_t *pBuffer, unsigned char *pArgs);
 void APP_CMD_version(Ring_t *pBuffer, unsigned char *pArgs);
