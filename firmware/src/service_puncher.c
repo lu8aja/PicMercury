@@ -116,6 +116,10 @@ inline unsigned char Puncher_write(unsigned char *pStr){
 
 
 inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
+    if (strequal(pCommand, "cfg punch")){
+        Puncher_cmd_cfg(pBuffer, pArgs);
+        return 1;
+    }
     if (strequal(pCommand, "punch")){
         Puncher_cmd(pBuffer, pArgs);
         return 1;
@@ -123,7 +127,8 @@ inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char *pCommand,
     return 0;
 }
 
-void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
+
+void Puncher_cmd_cfg(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -137,65 +142,65 @@ void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     
     pArg1 = strtok(pArgs, txtWhitespace);
     
-    if (strequal(pArg1, "send") || strequal(pArg1, "s")){
-        n = strlen(pArg1 + 5);
-        if (!n){
-            bOK = false;
-            strcpy(sReply, txtErrorInvalidArgument);
-        }
-        else if (n > ring_available(MasterPuncher.Output->Ring)){
-            bOK = false;
-            strcpy(sReply, txtErrorTooBig);
-        }
-        else{
-            MasterPuncher.Enabled = 1;
-            m = Puncher_write(pArg1 + 5);
-            if (m){
-                if (strequal(pArg1, "send")){
-                    sprintf(sReply, "%u + %u + %u + %u = %u (%u)\r\n",
-                        MasterPuncher.TimePunch,
-                        MasterPuncher.TimeGap1,
-                        MasterPuncher.TimeAdvance,
-                        MasterPuncher.TimeGap2,
-                        (MasterPuncher.TimePunch + MasterPuncher.TimeGap1 + MasterPuncher.TimeAdvance + MasterPuncher.TimeGap2),
-                        n
-                    );
-                }
-            }
-            else{
-                bOK = false;
-                strcpy(sReply, txtErrorBusy);
-            }
-        }
+    if (strequal(pArg1, "mode")){
+        pVal = &MasterPuncher.Output->Configs;
+    }
+    else if (strequal(pArg1, "time.punch")){
+        pVal = &MasterPuncher.TimePunch;
+    }
+    else if (strequal(pArg1, "time.gap1")){
+        pVal = &MasterPuncher.TimeGap1;
+    }
+    else if (strequal(pArg1, "time.gap2")){
+        pVal = &MasterPuncher.TimeGap2;
+    }
+    else if (strequal(pArg1, "time.advance")){
+        pVal = &MasterPuncher.TimeAdvance;
+    }
 
+    if (pVal){
+        pArg2 = strtok(NULL,  txtWhitespace);
+        if (pArg2){
+            *pVal = (unsigned char) atoi(pArg2);
+        }
+        sprintf(sReply, "%s = %u", pArg1, *pVal);
     }
     else{
-        if (strequal(pArg1, "mode")){
-            pVal = &MasterPuncher.Output->Configs;
-        }
-        else if (strequal(pArg1, "time_punch")){
-            pVal = &MasterPuncher.TimePunch;
-        }
-        else if (strequal(pArg1, "time_gap1")){
-            pVal = &MasterPuncher.TimeGap1;
-        }
-        else if (strequal(pArg1, "time_gap2")){
-            pVal = &MasterPuncher.TimeGap2;
-        }
-        else if (strequal(pArg1, "time_advance")){
-            pVal = &MasterPuncher.TimeAdvance;
-        }
+        bOK = false;
+        strcpy(sReply, txtErrorInvalidArgument);
+    }
+    
+    printReply(pBuffer, bOK, "PUNCH", sReply);
+}
 
-        if (pVal){
-            pArg2 = strtok(NULL,  txtWhitespace);
-            if (pArg2){
-                *pVal = (unsigned char) atoi(pArg2);
-            }
-            sprintf(sReply, "%s = %u", pArg1, *pVal);
+void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
+    bool bOK = true;
+    unsigned char *pArg1 = NULL;
+    unsigned char *pArg2 = NULL;
+    unsigned char *pVal  = NULL;
+    unsigned char n = 0;
+    unsigned char m = 0;
+
+    sReply[0] = 0x00;
+
+    n = strlen(pArgs);
+    if (!n){
+        bOK = false;
+        strcpy(sReply, txtErrorMissingArgument);
+    }
+    else if (n > ring_available(MasterPuncher.Output->Ring)){
+        bOK = false;
+        strcpy(sReply, txtErrorTooBig);
+    }
+    else{
+        MasterPuncher.Enabled = 1;
+        m = Puncher_write(pArg1 + 5);
+        if (m){
+            sprintf(sReply, "%u", n);
         }
         else{
             bOK = false;
-            strcpy(sReply, txtErrorInvalidArgument);
+            strcpy(sReply, txtErrorBusy);
         }
     }
     

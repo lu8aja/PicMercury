@@ -523,7 +523,7 @@ inline unsigned char SoftSerial_checkCmd(Ring_t * pBuffer, unsigned char *pComma
         SoftSerial_cmd_cfg(pBuffer, pArgs);
         return 1;
     }
-    else if (strequal(pCommand, "serial")){
+    if (strequal(pCommand, "serial")){
         SoftSerial_cmd(pBuffer, pArgs);
         return 1;
     }
