@@ -6,15 +6,18 @@
  */
 
 #include "lib_transcoder.h"
+#include "app_globals.h"
 
 #define LIB_PUNCHER
 
 #define PUNCHER_TRIS TRISD        // Port tris
 #define PUNCHER_LAT  LATD         // Port latch
-#define PUNCHER_BIT_ADVANCE    0b10000000 // Bitmask for advancing the paper
-#define PUNCHER_BIT_GUIDE      0b01000000 // Bitmask for the guide hole
+#define PUNCHER_BIT_ADVANCE    0b01000000 // Bitmask for advancing the paper
+#define PUNCHER_BIT_GUIDE      0b00100000 // Bitmask for the guide hole
 
-#define PUNCHER_BUFFER_SIZE 40
+#ifndef Puncher_sizeOutput
+    #define Puncher_sizeOutput 40
+#endif
 
 typedef struct {
     unsigned char Enabled;     // 0 = Off / 1 = On

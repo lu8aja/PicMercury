@@ -30,17 +30,17 @@ void USB_input(void){
             /* For every byte that was read... */
             if (bufChunk[0] == 0x0D || bufChunk[0] == 0x0A){
                 if (posCommand){
-                    bufCommand[posCommand] = 0x00;
-                    APP_executeCommand(0, bufCommand);
+                    bufUsbCommand[posCommand] = 0x00;
+                    APP_executeCommand(0, bufUsbCommand);
                     posCommand = 0;
-                    bufCommand[0] = 0x00;
+                    bufUsbCommand[0] = 0x00;
                     break;
                 }
             }
             else{
-                bufCommand[posCommand] = bufChunk[0];
+                bufUsbCommand[posCommand] = bufChunk[0];
                 posCommand++;
-                bufCommand[posCommand] = 0x00;
+                bufUsbCommand[posCommand] = 0x00;
             }
         }
     }
@@ -55,11 +55,11 @@ void USB_output(void){
 
     if(posOutput > 0 && USBUSARTIsTxTrfReady()){
         len = posOutput >= sizeOutUsb ? sizeOutUsb : posOutput;
-        strncpy(bufTmp, bufOutput, len);
+        strncpy(bufTmp, bufUsbOutput, len);
         putUSBUSART(bufTmp, len);
-        strcpy(bufOutput, &bufOutput[len]);
+        strcpy(bufUsbOutput, &bufUsbOutput[len]);
         posOutput = posOutput - len;
-        bufOutput[posOutput] = 0x00;
+        bufUsbOutput[posOutput] = 0x00;
     }
 
     CDCTxService();

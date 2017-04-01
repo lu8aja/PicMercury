@@ -96,6 +96,8 @@ inline void APP_init(void){
             CFG_SOFTSERIAL_RX_Period,
             CFG_SOFTSERIAL_Transcode
         );
+        
+        SoftSerial_enable(&SoftSerial, 3);
     #endif
     
     #if defined(LIB_I2C)
@@ -283,82 +285,109 @@ inline void APP_main(){
 
 
 void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
-    unsigned char *ptrCommand;
-    unsigned char *ptrArgs    = NULL;
-    unsigned char nExecuted   = 0;
+    unsigned char *pCommand;
+    unsigned char *pArgs    = NULL;
+    unsigned char *pArg1    = NULL;
+    unsigned char nExecuted = 0;
     unsigned char n;
     unsigned char val;
+
+    print(txtCrLf);    
 
     if (pLine[0] == 0x00 || pLine == NULL){
         // Empty line
         return;
     }
-   
+    
     pLine[strlen(pLine) + 1] = 0; // Workaround for args parsing
     
     // Get the command
-    ptrCommand = strtok(pLine, txtWhitespace);
-    // Get the arguments
-    if (ptrCommand != NULL){
-        ptrArgs = &pLine[strlen(ptrCommand) + 1];
-    }
+    pCommand = strtok(pLine, txtWhitespace);
 
-    print(txtCrLf);    
-    
-    str2lower(ptrCommand);    
-
-    if (ptrCommand == NULL){ 
+    if (pCommand == NULL){ 
         // Likely a line starting with space
-        printReply(pBuffer, 0, txtErrorMissingCommand, ptrCommand);
+        printReply(pBuffer, 0, txtErrorMissingCommand, pCommand);
         return;
     }
+    // Get the arguments
+    else{
+        str2lower(pCommand);    
+            
+        pArgs = &pLine[strlen(pCommand) + 1];
+        
+        if (strequal(pCommand, txtCmdConfig)){
+            // CONFIG special command
+            
+            // As it is a config, get the first argument to know what you are configuring
+            pArg1 = strtok(pArgs, txtWhitespace);
+            if (pArg1 == NULL){
+                printReply(pBuffer, 0, txtErrorUnknownArgument, 0);
+                return;
+            }
+            
+            str2lower(pArg1);    
 
+            // This is done so if you enter: "cfg serial blah"
+            // The command ends up being "cfg serial" and the arguments "blah"
+            // It is done this way to make it easy for the services to identify
+            // which one you are configuring
+            
+            // Fuse together command with arg1 changing the null terminator to a space
+            pCommand[strlen(pCommand)] = ' ';
+            // Reposition arguments pointer
+            pArgs += strlen(pArg1);           
+            pArgs++;
+        }
+    }
+
+    printf("<%s><%s>\r\n", pCommand, pArgs);
+    
     #ifdef LIB_CMD
-        if (!nExecuted) nExecuted = Cmd_checkCmd(pBuffer, ptrCommand, ptrArgs);
+        if (!nExecuted) nExecuted = Cmd_checkCmd(pBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_I2C
-        if (!nExecuted) nExecuted = I2C_checkCmd(pBuffer, ptrCommand, ptrArgs);
+        if (!nExecuted) nExecuted = I2C_checkCmd(pBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_SOFTSERIAL
-        if (!nExecuted) nExecuted = SoftSerial_checkCmd(pBuffer, ptrCommand, ptrArgs);
+        if (!nExecuted) nExecuted = SoftSerial_checkCmd(pBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_PUNCHER
-        if (!nExecuted) nExecuted = Puncher_checkCmd(pBuffer, ptrCommand, ptrArgs);
+        if (!nExecuted) nExecuted = Puncher_checkCmd(pBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_MUSIC
-        if (!nExecuted) nExecuted = Music_checkCmd(pBuffer, ptrCommand, ptrArgs);
+        if (!nExecuted) nExecuted = Music_checkCmd(pBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_LEDS
-        if (!nExecuted) nExecuted = Leds_checkCmd(pBuffer, ptrCommand, ptrArgs);
+        if (!nExecuted) nExecuted = Leds_checkCmd(pBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_KEYS
-        if (!nExecuted) nExecuted = Keys_checkCmd(pBuffer, ptrCommand, ptrArgs);
+        if (!nExecuted) nExecuted = Keys_checkCmd(pBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_MONITOR
-        if (!nExecuted) nExecuted = Monitor_checkCmd(pBuffer, ptrCommand, ptrArgs);
+        if (!nExecuted) nExecuted = Monitor_checkCmd(pBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_PROGRAM
-        if (!nExecuted) nExecuted = Program_checkCmd(pBuffer, ptrCommand, ptrArgs);
+        if (!nExecuted) nExecuted = Program_checkCmd(pBuffer, pCommand, pArgs);
     #endif
 
     if (!nExecuted){
         /* Non Library/Board dependent commands */
 
         // VERSION
-        if (strequal(ptrCommand, "version") || strequal(ptrCommand, "ver")){
+        if (strequal(pCommand, "version") || strequal(pCommand, "ver")){
             printReply(pBuffer, 1, "VERSION", txtVersion);
             nExecuted = 1;
         }
         // HEAP
-        else if (strequal(ptrCommand, "heap")){
+        else if (strequal(pCommand, "heap")){
             sprintf(sReply, "%u of %u", Heap_Next - Heap, sizeof(Heap));
             printReply(pBuffer, 1, "HEAP", sReply);
             nExecuted = 1;

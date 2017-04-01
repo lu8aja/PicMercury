@@ -135,6 +135,14 @@ unsigned char ring_peep_pos(Ring_t *Ring, unsigned char *Data, unsigned char nPo
 	return 1;
 }
 
+unsigned char ring_tail(Ring_t *Ring){
+	if (Ring->Tail == Ring->Head){
+	    // Quickly detect empty condition
+		return 0;
+	}
+	return Ring->Buffer[Ring->Tail];
+}
+
 unsigned char ring_assert(Ring_t *Ring, unsigned char *pStr, unsigned char nMaxLen, unsigned char bHaltNull){
 	unsigned char n = 0;
 

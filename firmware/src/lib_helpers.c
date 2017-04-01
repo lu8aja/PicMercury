@@ -95,14 +95,14 @@ void putch(const unsigned char byte){
             #endif
             
             //MasterConsoleStatus.bufferOverrun = 1;
-            strcpy(bufOutput, "\r\n!ERROR OVERFLOW ");
+            strcpy(bufUsbOutput, "\r\n!ERROR OVERFLOW ");
             posOutput = 19;
         }
     }
 
-    bufOutput[posOutput] = byte;
+    bufUsbOutput[posOutput] = byte;
     posOutput++;
-    bufOutput[posOutput] = 0x00;
+    bufUsbOutput[posOutput] = 0x00;
 }
 
 

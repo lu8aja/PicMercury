@@ -47,6 +47,9 @@ unsigned char ring_peep(Ring_t *Ring, unsigned char *Data);
 // Peeps the nth character from the buffer without changing head or tail
 unsigned char ring_peep_pos(Ring_t *Ring, unsigned char *Data, unsigned char nPos);
 
+// Return directly last character from the buffer without changing head or tail
+unsigned char ring_tail(Ring_t *Ring);
+
 // Asserts a whole null terminated  string from the buffer without freeing it
 unsigned char ring_assert(Ring_t *Ring, unsigned char *pStr, unsigned char nMaxLen, unsigned char bHaltNull);
 

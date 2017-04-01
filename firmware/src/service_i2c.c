@@ -331,7 +331,7 @@ void I2C_Master_interrupt(void){
                 if (nChar < 32) printf("(%02x)", nChar); else putch(nChar);
             #endif
 
-            ring_dump(I2C.Input, &bufOutput[posOutput]);
+            ring_dump(I2C.Input, &bufUsbOutput[posOutput]);
 
             I2C.SlaveLen--;
             if (I2C.SlaveLen){
@@ -413,19 +413,17 @@ inline void I2C_Slave_service(void){
         else {
             idBuffer = ring_get(I2C.Input);
             ring_write(I2C.Output, idBuffer);
-            unsigned char * pCmd = Heap_alloc(nChar);
-            if (!pCmd){
+            if (nChar >= sizeof(bufCommand)){
                 printReply(I2C.Output, 2, "I2C", txtErrorTooBig);
                 ring_write(I2C.Output, I2C_EndOfMsg);
             }
             else{
                 print("\r\nI2C EXEC SLV: ");        
-                ring_str(I2C.Input, pCmd,  nChar - 1, 0);
-                print(pCmd);
+                ring_str(I2C.Input, bufCommand,  nChar - 1, 0);
+                print(bufCommand);
                 ring_get(I2C.Input); // Discard EoM
-                APP_executeCommand(I2C.Output, pCmd);
+                APP_executeCommand(I2C.Output, bufCommand);
                 ring_write(I2C.Output, I2C_EndOfMsg);
-                Heap_free(pCmd);
             }
         }
 

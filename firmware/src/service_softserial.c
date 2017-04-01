@@ -38,9 +38,11 @@ void SoftSerial_init(
     unsigned char nRxInvertCtrl,
     unsigned char nDuplex
 ){
-    pSerial->Configs      = 0;
     pSerial->Status       = 0;
-    pSerial->Debug        = 1;
+    pSerial->Configs      = 0;
+    pSerial->CfgDebug     = 0;
+    pSerial->RxColumn     = 0;
+    
     pSerial->TxPort       = nTxPort & 0x07;
     pSerial->TxPin        = nTxPin  & 0x07;
     pSerial->TxInvertData = nTxInvertData;
@@ -55,6 +57,10 @@ void SoftSerial_init(
     pSerial->DataBits     = 8;
     pSerial->StopBits     = 1;
     pSerial->BitPeriod    = 9;
+    
+    pSerial->RxCommands   = 1; // Enable command handling by default
+    pSerial->Debug        = 0;
+    pSerial->RxEchoToUsb  = 1;
     
     // Buffers should NEVER be created twice!
     if (pSerial->Output == NULL){
@@ -87,9 +93,9 @@ void SoftSerial_enable(SoftSerial_t *pSerial, unsigned char nEnabled){
             pin_cfg(pSerial->TxPort, pSerial->TxPin, 0);
             pin_write(pSerial->TxPort, pSerial->TxPin, pSerial->TxInvertCtrl);
         }
+        pSerial->Enabled   = 1;
         pSerial->TxTick    = 0;
         pSerial->TxState   = 0;
-        pSerial->Enabled   = 1;
         pSerial->TxEnabled = 1;
         ring_clear(pSerial->Output->Ring);
         pSerial->Output->Shift = 0;
@@ -100,10 +106,10 @@ void SoftSerial_enable(SoftSerial_t *pSerial, unsigned char nEnabled){
             // Configure input pin
             pin_cfg(pSerial->RxPort, pSerial->RxPin, 1);
         }
+        pSerial->Enabled   = 1;
         pSerial->RxTick    = 0;
         pSerial->RxState   = 0;
         pSerial->RxEnabled = 1;
-        pSerial->Enabled   = 1;
         ring_clear(pSerial->Input->Ring);
         pSerial->Input->Shift = 0;
     }
@@ -149,13 +155,52 @@ inline void SoftSerial_tick(SoftSerial_t *pSerial){
 }
 
 inline void SoftSerial_service(SoftSerial_t *pSerial){
+    unsigned char  nChar;
+    
     // Due to half duplex logic, RX must go first to eventually block TX
     
     // INPUT
     if (!pSerial->RxTick && pSerial->RxEnabled){
         SoftSerial_service_rx(pSerial);
+        
+        if (pSerial->RxCommandRun){
+            nChar = ring_findChr(pSerial->Input->Ring, '\n', 0);
+            if (nChar < 255){
+                if (nChar >= sizeof(bufCommand)){
+                    printReply(pSerial->Output->Ring, 0, "TTY", txtErrorTooBig);
+                    ring_write(pSerial->Output->Ring, '\r');
+                    ring_write(pSerial->Output->Ring, '\n');
+                    if (pSerial->RxEchoToUsb){
+                        print("\r\nHEAP OVERFLOW: ");
+                        printf("%u ", nChar);
+                    }
+                    ring_clear(pSerial->Input->Ring);
+                }
+                else{
+                    
+                    ring_str(pSerial->Input->Ring, bufCommand,  nChar, 0);
+                    ring_get(pSerial->Input->Ring); // Discard \n
+                    if (pSerial->RxEchoToUsb){
+                        print("\r\nSERIAL CMD: ");
+                        print(bufCommand);
+                    }
+                    APP_executeCommand(pSerial->Output->Ring, bufCommand);
+                    ring_write(pSerial->Output->Ring, '\r');
+                    ring_write(pSerial->Output->Ring, '\n');
+                    
+                    if (pSerial->RxEchoToUsb){
+                        print(sReply);
+                    }
+                }
+                
+                if (ring_findChr(pSerial->Input->Ring, '\n', 0) == 255){
+                    pSerial->RxCommandRun = 0;        
+                }
+            }
+        }
     }
-    // Output
+
+    // OUTPUT
     if (!pSerial->TxTick && pSerial->TxEnabled){
         SoftSerial_service_tx(pSerial);
         
@@ -165,6 +210,8 @@ inline void SoftSerial_service(SoftSerial_t *pSerial){
 
 inline void SoftSerial_service_rx(SoftSerial_t *pSerial){
     unsigned char nPin;
+    unsigned char nChar;
+    unsigned char nAppend;
     
     // Read
     nPin = pin_read(pSerial->RxPort, pSerial->RxPin);
@@ -242,19 +289,121 @@ inline void SoftSerial_service_rx(SoftSerial_t *pSerial){
             }
         }
         else{
-            // Stop bit is correct, add to buffer
-            if (!Transcoder_write(pSerial->Input, pSerial->RxByte)){
-                // Buffer overflow
-                pSerial->ErrorRxOverflow = 1;
-                // Choose to either start overwriting the buffer, or discarding information
-                // We are now discarding
+            // Stop bit is correct, add to buffer or do something with it
+            
+            
+            byte2binstr(sStr1, pSerial->RxByte);
+            printf("[%s](%c)\r\n", sStr1, pSerial->RxByte);
+            if (pSerial->RxEcho){
+                // If we have a FullDuplex then Rx loop is separate from Tx loop, so what you write at the TTY
+                // is not being printed at the paper, which is annoying, so we can echo it back
+                if (pSerial->TxState == 0){
+                    pSerial->TxByte = pSerial->RxByte;
+                    pSerial->TxState = 1;
+                }
+                // else {
+                // NOTE: If we are in full duplex, TxState might not be 0, and we would need to 
+                // prepend into the ring buffer, which in turn might be full causing trouble
+                // I am not implementing this case, because FullDuplex usage in real mechanical TTYs is unlikely
+                // }
             }
-            putch(ring_get(pSerial->Input->Ring));
+            
+            // COMMANDS are enabled
+            // NOTE: This whole thing of commands being done here sucks, but I am in a hurry
+            // TODO: Rework into something more decent be it at the transcoder or something separate
+            if (pSerial->RxCommands){
+                // Track column
+                if (pSerial->Input->ModeIta2){
+                    // ITA2
+                    if (pSerial->RxByte == TRANSCODER_ITA_CR){
+                        pSerial->RxColumn = 0;
+                        nAppend = 0;
+                        // We intentionally exclude CRs from the cmd line
+                    }
+                    else if (pSerial->RxByte == TRANSCODER_ITA_LF){
+                        if (pSerial->RxCommandStart){
+                            pSerial->RxCommandRun   = 1;
+                            pSerial->RxCommandStart = 0;
+                            // We need to ensure that one and only one LF is added to the cmd line
+                            nAppend = 1;
+                        }
+                    }
+                    else if (pSerial->RxByte != TRANSCODER_ITA_FIGS 
+                        &&   pSerial->RxByte != TRANSCODER_ITA_LTRS
+                        &&   pSerial->RxByte != TRANSCODER_ITA_NULL
+                    ){
+                        // Check if line is command (Column 0 && $)
+                        if (!pSerial->RxColumn 
+                            && pSerial->Input->Shift
+                            && pSerial->RxByte == CFG_SOFTSERIAL_CommandCharIta2){
+                            pSerial->RxCommandStart = 1;
+                            nAppend = 0;
+                        }
+                        else{
+                            nAppend = pSerial->RxCommandStart;
+                        }
+                        pSerial->RxColumn++;
+                    }
+                }
+                else{
+                    // ASCII
+                    if (pSerial->RxByte == '\r'){
+                        pSerial->RxColumn = 0;
+                        nAppend = 0;
+                        // We intentionally exclude CRs from the cmd line
+                    }
+                    else if (pSerial->RxByte == '\n'){
+                        if (pSerial->RxCommandStart){
+                            pSerial->RxCommandRun   = 1;
+                            pSerial->RxCommandStart = 0;
+                            // We need to ensure that one and only one LF is added to the cmd line
+                            nAppend = 1;
+                        }
+                    }
+                    else if (pSerial->RxByte > 31){
+                        // Check if line is command (Column 0 && $)
+                        if (!pSerial->RxColumn && pSerial->RxByte == CFG_SOFTSERIAL_CommandCharAscii){
+                            pSerial->RxCommandStart = 1;
+                            nAppend = 0;
+                        }
+                        else{
+                            nAppend = pSerial->RxCommandStart;
+                        }
+                        pSerial->RxColumn++;
+                    }
+                }
+            
+                // Add to buffer or simply test the character
+                if (!Transcoder_write(pSerial->Input, pSerial->RxByte, !nAppend)){
+                    // Buffer overflow
+                    pSerial->ErrorRxOverflow = 1;
+                    // Choose to either start overwriting the buffer, or discarding information
+
+                    // We are now discarding the entire buffer
+                    ring_clear(pSerial->Input->Ring);
+                    pSerial->RxCommandStart = 0;
+                }
+                
+                if (pSerial->RxEchoToUsb && pSerial->Input->LastPrintable && pSerial->Input->Char){
+                    putch(pSerial->Input->Char);
+                }
+
+            }
+            else{
+                // If commands are not enabled, we don't want to add to the buffer permanently,
+                // but we need to convert it and keep shift status of the line
+                // so we write in test mode
+                Transcoder_write(pSerial->Input, pSerial->RxByte, 1);
+                if (pSerial->RxEchoToUsb && pSerial->Input->LastPrintable && pSerial->Input->Char){
+                     putch(pSerial->Input->Char);
+                }
+            }
+            
             #if SeoftSerial_Debug
             if (pSerial->Debug){
                 byte2binstr(sStr4, pSerial->RxByte);
                 ring_assert(pSerial->Input->Ring, sStr5, sizeof(sStr5), true);
-                printf("%02u [%s] <%s>\r\n", ring_strlen(pSerial->Input->Ring), sStr4, sStr5);
+                printf("%02u [%s] <%s> %u\r\n", ring_strlen(pSerial->Input->Ring), sStr4, sStr5, pSerial->RxColumn);
             }
             #endif
             pSerial->RxState = 0;
@@ -370,14 +519,19 @@ inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr
 
 
 inline unsigned char SoftSerial_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
-    if (strequal(pCommand, "serial")){
+    if (strequal(pCommand, "cfg serial")){
+        SoftSerial_cmd_cfg(pBuffer, pArgs);
+        return 1;
+    }
+    else if (strequal(pCommand, "serial")){
         SoftSerial_cmd(pBuffer, pArgs);
         return 1;
     }
     return 0;
 }
 
-void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
+
+void SoftSerial_cmd_cfg(Ring_t * pBuffer, unsigned char *pArgs){
     bool bOK = true;
     bool bShowStatus = true;
     unsigned char *pArg = NULL;
@@ -389,18 +543,19 @@ void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     
     sReply[0] = 0x00;
     
-    if (!pArgs[0]){
+    pArg = strtok(pArgs, txtWhitespace);
+    
+    if (!pArg){
         // Do nothing, just print data
     }
     #if SeoftSerial_Debug
-        else if(strequal(pArgs, "debug")){
+        else if(strequal(pArg, "debug")){
             SoftSerial.Debug ^= 1;
         }
-        else if(strequal(pArgs, "repeat")){
+        else if(strequal(pArg, "repeat")){
             SoftSerial.TxRepeated ^= 1;
         }
-        else if((pArgs[0] == 's' && pArgs[1] == 'y' && pArgs[2] == 'n' && pArgs[3] == 'c' && pArgs[4] == ' ')){
-            pArg = strtok(pArgs, txtWhitespace); // get rid of the sync
+        else if(strequal(pArg, "sync")){
             pArg = strtok(NULL, txtWhitespace);
             if (pArg){
                 SoftSerial.SyncPort = (unsigned char) atoi(pArg);
@@ -412,15 +567,14 @@ void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
             printf("SYNC %c %u\r\n", SoftSerial.SyncPort + 'A' - 1, SoftSerial.SyncBit);
             pin_cfg(SoftSerial.SyncPort, SoftSerial.SyncBit, 0);
         }
-        else if(pArgs[0] == 'x' && pArgs[1] == ' ' ){
-            pArg = strtok(pArgs, txtWhitespace); // the "on"
+        else if(strequal(pArg, "val")){
             pArg = strtok(NULL, txtWhitespace);
             if (pArg){
                 ring_clear(SoftSerial.Output->Ring);
                 ring_write(SoftSerial.Output->Ring, (unsigned char) atoi(pArg));
             }
         }
-        else if(strequal(pArgs, "dump")){
+        else if(strequal(pArg, "dump")){
             unsigned char *p = (unsigned char *) &SoftSerial;
             print("CONFIGS:\r\n");
             for (n = 0; n < sizeof(SoftSerial); n++){
@@ -443,7 +597,7 @@ void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
             }
             print(txtCrLf);
         }
-        else if(strequal(pArgs, "dumptx")){
+        else if(strequal(pArg, "dumptx")){
             printf("\r\nOUT: H:%u T:%u S:%u A:%u M:%2x Sh:%u\r\n", 
                 SoftSerial.Output->Ring->Head,
                 SoftSerial.Output->Ring->Tail,
@@ -462,18 +616,14 @@ void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
         }
 
     #endif
-    else if(strequal(pArgs, "off")){
+    else if(strequal(pArg, "off")){
+        SoftSerial.Enabled  = 0;
         SoftSerial.Status   = 0;
         SoftSerial.TxState  = 0;
         SoftSerial.RxState  = 0;
     }
-    else if (strequal(pArgs, "on")){
-        SoftSerial_enable(&SoftSerial, SoftSerial_TX_ENABLE | SoftSerial_RX_ENABLE);
-    }
     // on (DataBits) (StopBits) (Period) (Mode) (HD) (TxInvert) (RxInvert)
-    else if(pArgs[0] == 'o' && pArgs[1] == 'n' && pArgs[2] == ' '){
-        pArg = strtok(pArgs, txtWhitespace); // the "on"
-
+    else if (strequal(pArg, "on")){
         // Note: Horrible arrow pattern, but it is cheaper in ROM
         pArg = strtok(NULL, txtWhitespace);
         if (pArg){
@@ -495,12 +645,12 @@ void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
                             if (pArg){
                                 n = atoi(pArg);
                                 pSerial->TxInvertData = n & 1;
-                                pSerial->TxInvertCtrl = n & 2;
+                                pSerial->TxInvertCtrl = (n & 2) >> 1;
                                 pArg = strtok(NULL, txtWhitespace);
                                 if (pArg){
                                     n = atoi(pArg);
                                     pSerial->RxInvertData = n & 1;
-                                    pSerial->RxInvertCtrl = n & 1;
+                                    pSerial->RxInvertCtrl = (n & 2) >> 1;
                                 }
                             }
                         }
@@ -510,25 +660,6 @@ void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
         }
         
         SoftSerial_enable(&SoftSerial, SoftSerial_TX_ENABLE | SoftSerial_RX_ENABLE);
-    }
-    else{
-        // We've got text to send
-        if (SoftSerial.Enabled){
-            if (strlen(pArgs) < ring_available(SoftSerial.Output->Ring)){
-                ring_append(SoftSerial.Output->Ring, pArgs);
-                bShowStatus = false;
-            }
-            else {
-                bOK = false;
-                strcpy(sReply, txtErrorTooBig);
-                bShowStatus = false;
-            }
-            
-        }
-        else{
-            bOK = false;
-            strcpy(sReply, txtOff);
-        }
     }
     
     if (bShowStatus){
@@ -553,6 +684,39 @@ void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
             SoftSerial.ErrorRxOverflow,
             SoftSerial.ErrorRxFraming
         );
+    }
+    
+    printReply(pBuffer, bOK, "SERIAL", sReply);
+}
+
+void SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs){
+    bool bOK = true;
+    SoftSerial_t *pSerial    = &SoftSerial; // For convenience
+    unsigned char nLen       = 0;
+
+    
+    sReply[0] = 0x00;
+    
+    nLen = strlen(pArgs);
+    if (!nLen){
+        bOK = false;
+        strcpy(sReply, txtErrorMissingArgument);
+    }
+    else{
+        // We've got text to send
+        if (SoftSerial.Enabled){
+            if (nLen < ring_available(SoftSerial.Output->Ring)){
+                ring_append(SoftSerial.Output->Ring, pArgs);
+            }
+            else {
+                bOK = false;
+                strcpy(sReply, txtErrorTooBig);
+            }
+        }
+        else{
+            bOK = false;
+            strcpy(sReply, txtOff);
+        }
     }
     
     printReply(pBuffer, bOK, "SERIAL", sReply);

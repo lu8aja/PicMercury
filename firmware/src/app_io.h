@@ -70,7 +70,7 @@
     */
 
 /*** I2C Related ***/
-    #define CFG_I2C_ADDRESS_MASTER  0x01       // NEVER change this one, it is used by slaves to notify master, nothing to do with actual I2C addresses!
+    #define CFG_I2C_ADDRESS_MASTER  0x01       // NEVER change this one, it is used internally by slaves to notify master, nothing to do with actual I2C addresses!
     #define CFG_I2C_ADDRESS_CONSOLE 0b00010000 // Not actually used over the wire because it is master
     #define CFG_I2C_ADDRESS_PUNCHER 0b00100000
     #define CFG_I2C_ADDRESS_READER  0b01000000
@@ -79,17 +79,20 @@
 /*** SoftSerial Related ***/
     #define CFG_SOFTSERIAL_TX_Port        'B'
     #define CFG_SOFTSERIAL_TX_Pin          5
-    #define CFG_SOFTSERIAL_TX_InvertData   1
     #define CFG_SOFTSERIAL_TX_InvertCtrl   1
+    #define CFG_SOFTSERIAL_TX_InvertData   0
     #define CFG_SOFTSERIAL_RX_Port        'B'
     #define CFG_SOFTSERIAL_RX_Pin          4
-    #define CFG_SOFTSERIAL_RX_InvertData   0
     #define CFG_SOFTSERIAL_RX_InvertCtrl   1
+    #define CFG_SOFTSERIAL_RX_InvertData   1
     #define CFG_SOFTSERIAL_RX_DataBits     5
     #define CFG_SOFTSERIAL_RX_StopBits     1
     #define CFG_SOFTSERIAL_RX_Period       20
     #define CFG_SOFTSERIAL_HalfDuplex      1
     #define CFG_SOFTSERIAL_Transcode       3
+
+    #define CFG_TRANSCODER_CODE            1
+
 /*** Misc ***/
 
 #define INPUT   1

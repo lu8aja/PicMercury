@@ -8,8 +8,8 @@
         <logicalFolder name="console" displayName="console" projectFiles="true">
           <itemPath>../src/board/console/flags.h</itemPath>
         </logicalFolder>
-        <logicalFolder name="crts" displayName="crts" projectFiles="true">
-          <itemPath>../src/board/crts/flags.h</itemPath>
+        <logicalFolder name="monitor" displayName="monitor" projectFiles="true">
+          <itemPath>../src/board/monitor/flags.h</itemPath>
         </logicalFolder>
         <logicalFolder name="puncher" displayName="puncher" projectFiles="true">
           <itemPath>../src/board/puncher/flags.h</itemPath>
@@ -132,14 +132,6 @@
         <makeCustomizationEnableLongLines>false</makeCustomizationEnableLongLines>
         <makeCustomizationNormalizeHexFile>false</makeCustomizationNormalizeHexFile>
       </makeCustomizationType>
-      <item path="../src/board/crts/flags.h" ex="true" overriding="false">
-        <HI-TECH-COMP>
-        </HI-TECH-COMP>
-        <HI-TECH-LINK>
-        </HI-TECH-LINK>
-        <XC8-config-global>
-        </XC8-config-global>
-      </item>
       <item path="../src/board/puncher/flags.h" ex="true" overriding="false">
         <HI-TECH-COMP>
         </HI-TECH-COMP>
@@ -653,14 +645,6 @@
         <XC8-config-global>
         </XC8-config-global>
       </item>
-      <item path="../src/board/crts/flags.h" ex="true" overriding="false">
-        <HI-TECH-COMP>
-        </HI-TECH-COMP>
-        <HI-TECH-LINK>
-        </HI-TECH-LINK>
-        <XC8-config-global>
-        </XC8-config-global>
-      </item>
       <item path="../src/board/reader/flags.h" ex="true" overriding="false">
         <HI-TECH-COMP>
         </HI-TECH-COMP>
@@ -751,7 +735,6 @@
         <property key="ToolFirmwareFilePath"
                   value="Press to browse for a specific firmware version"/>
         <property key="ToolFirmwareOption.UseLatestFirmware" value="true"/>
-        <property key="firmware.download.all" value="false"/>
         <property key="hwtoolclock.frcindebug" value="false"/>
         <property key="memories.aux" value="false"/>
         <property key="memories.bootflash" value="true"/>
@@ -767,7 +750,7 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="0-7fff"/>
         <property key="poweroptions.powerenable" value="false"/>
-        <property key="programmertogo.imagename" value=""/>
+        <property key="programmertogo.imagename" value="PUNCHER"/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>
         <property key="programoptions.pgmspeed" value="2"/>
@@ -1159,14 +1142,6 @@
         <makeCustomizationNormalizeHexFile>false</makeCustomizationNormalizeHexFile>
       </makeCustomizationType>
       <item path="../src/board/console/flags.h" ex="true" overriding="false">
-        <HI-TECH-COMP>
-        </HI-TECH-COMP>
-        <HI-TECH-LINK>
-        </HI-TECH-LINK>
-        <XC8-config-global>
-        </XC8-config-global>
-      </item>
-      <item path="../src/board/crts/flags.h" ex="true" overriding="false">
         <HI-TECH-COMP>
         </HI-TECH-COMP>
         <HI-TECH-LINK>
@@ -1636,7 +1611,7 @@
         <property key="stack-type" value="compiled"/>
       </XC8-config-global>
     </conf>
-    <conf name="CRTs" type="2">
+    <conf name="Monitor" type="2">
       <toolsSet>
         <developmentServer>localhost</developmentServer>
         <targetDevice>PIC18F4550</targetDevice>
@@ -1699,7 +1674,7 @@
         <property key="asmlist" value="true"/>
         <property key="define-macros" value=""/>
         <property key="disable-optimizations" value="false"/>
-        <property key="extra-include-directories" value="..\src\board\crts"/>
+        <property key="extra-include-directories" value="..\src\board\monitor"/>
         <property key="favor-optimization-for" value="-speed,+space"/>
         <property key="identifier-length" value="255"/>
         <property key="local-generation" value="false"/>

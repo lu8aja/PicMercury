@@ -31,6 +31,8 @@ extern const char txtOff[];
 extern const char txtSpc[];
 extern const char txtSep[];
 
+extern const char txtCmdConfig[];
+
 extern const char txtErrorMissingCommand[];
 extern const char txtErrorUnknownCommand[];
 extern const char txtErrorUnknownArgument[];
@@ -66,17 +68,18 @@ extern Clock_t MasterClock;
 #define sizeChunk      4
 #define sizeOutput   200
 #define sizeOutUsb   100
-#define sizeCommand   64
+#define sizeCommand   72
 #define sizeReply    100
 #define sizeStr       17
 
-#define I2C_sizeInput   40
-#define I2C_sizeOutput  40
+#define I2C_sizeInput   72
+#define I2C_sizeOutput  72
 
 #ifdef DEVICE_PUNCHER
-    #define HEAP_Size             200    // Remember that the ring structs themselves waste about 6 bytes
-    #define SOFTSERIAL_sizeOutput 45
-    #define SOFTSERIAL_sizeInput  45
+    #define HEAP_Size             320    // Remember that the ring structs themselves waste about 6 bytes
+    #define SoftSerial_sizeInput  72
+    #define SoftSerial_sizeOutput 72
+    #define Puncher_sizeOutput    72
 #endif
 
 
@@ -87,7 +90,8 @@ extern Clock_t MasterClock;
 
 /*** Buffers ***/
 extern unsigned char  bufChunk[sizeChunk];
-extern unsigned char  bufOutput[sizeOutput + 1];
+extern unsigned char  bufUsbOutput[sizeOutput + 1];
+extern unsigned char  bufUsbCommand[sizeCommand];
 extern unsigned char  bufCommand[sizeCommand];
 extern unsigned char  bufTmp[sizeOutUsb + 1];
 extern unsigned char  sReply[sizeReply];

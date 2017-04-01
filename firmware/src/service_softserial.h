@@ -7,7 +7,9 @@
 
 #define LIB_SOFTSERIAL
 
+#include "app_globals.h"
 #include "lib_transcoder.h"
+#include "app_main.h"
 
 #define SeoftSerial_Debug           1
 
@@ -29,32 +31,53 @@
     #define SoftSerial_sizeInput 16
 #endif
 
+#ifndef CFG_SOFTSERIAL_CommandCharAscii
+    #define CFG_SOFTSERIAL_CommandCharAscii '$'
+#endif
+#ifndef CFG_SOFTSERIAL_CommandCharIta2
+    #define CFG_SOFTSERIAL_CommandCharIta2  0x0d //ITA2-ES without shift
+#endif
+
+
 // TYPES
 typedef struct {
     union {
         unsigned char Status;               // Status Register
         struct {
-            unsigned Enabled:1;             // [01] Tx Enabled
-            unsigned Debug:1;               // [02] Debug to console (Only available when compiled with the DEBUG flag)
-            unsigned ErrorRxFraming:1;      // [04] Rx Framing Error (stop bit))
-            unsigned ErrorRxOverflow:1;     // [08] Rx (Input) buffer overflow
-            unsigned TxRepeated:1;          // [10] Repeated send, does not clear the out buffer and restarts the pointer (Only available when compiled with the DEBUG flag)
-        };
-    };
-    union {
-        unsigned char Configs;               // Status Register
-        struct {
             unsigned TxEnabled:1;           // [01] Tx Enabled
-            unsigned TxInvertData:1;        // [02] Tx Invert Data bits
-            unsigned TxInvertCtrl:1;        // [04] Tx Invert Control bits
             unsigned RxEnabled:1;           // [08] Rx Enabled
-            unsigned RxInvertData:1;        // [10] Rx Invert Data bits
-            unsigned RxInvertCtrl:1;        // [20] Rx Invert Control bits
-            unsigned HalfDuplex:1;          // [40] 1 = HalfDuplex: Disables RX while TX, and TX while RX, (to suppress reentrant input or corrupting output, in a current loop)
-            unsigned Transcode:1;           // [80] 1 = ASCII -> ITA2
+            unsigned RxEndOfLine:1;         // [08] EndOfLine detected (used for command line detection)
+            unsigned RxCommandStart:1;      // [04] StartOfCommand detected (used for command line detection)
+            unsigned RxCommandRun:1;        // [04] StartOfCommand detected (used for command line detection)
+            unsigned ErrorRxFraming:1;      // [20] Rx Framing Error (stop bit)
+            unsigned ErrorRxOverflow:1;     // [40] Rx (Input) buffer overflow
 
         };
     };
+    
+    union {
+        unsigned char Configs;               // Configs Register
+        struct {
+            unsigned Enabled:1;             // [01] Service Enabled
+            unsigned TxInvertData:1;        // [02] Tx Invert Data bits
+            unsigned TxInvertCtrl:1;        // [04] Tx Invert Control bits
+            unsigned RxInvertData:1;        // [10] Rx Invert Data bits
+            unsigned RxInvertCtrl:1;        // [20] Rx Invert Control bits
+            unsigned RxEcho:1;              // [40] Echo received char to Tx as is (bypassing the ring buffer)
+            unsigned HalfDuplex:1;          // [80] 1 = HalfDuplex: Disables RX while TX, and TX while RX, (to suppress reentrant input or corrupting output, in a current loop)
+            unsigned RxCommands:1;          // [02] 0: Discard messages / 1: Execute commands
+        };
+    };
+
+    union {
+        unsigned char CfgDebug;             // Configs Debug
+        struct {
+            unsigned Debug:1;               // [01] Debug to console (Only available when compiled with the DEBUG flag)
+            unsigned RxEchoToUsb:1;         // [10] Echo the decoded output to USB directly
+            unsigned TxRepeated:1;          // [80] Repeated send, does not clear the out buffer and restarts the pointer (Only available when compiled with the DEBUG flag)
+        };
+    };
+    
     unsigned char BitPeriod;   // Bit period in ms
     unsigned char DataBits;    // Data Bits (1 .. 8)
     unsigned char StopBits;    // Stop Bits (1 .. 8)
@@ -62,6 +85,7 @@ typedef struct {
     unsigned char TxPin;       // TX Pin Bit (0..7)
     unsigned char RxPort;      // RX Input Port (A..E or 1..5)
     unsigned char RxPin;       // RX Pin Bit (0..7)
+    unsigned char RxColumn;    // RX Column, used for command decoding
 
     unsigned char TxState;     // State Machine: 0 = Off / 1 = 
     unsigned char TxTick;      // Time ticker in ms
@@ -104,5 +128,8 @@ inline void          SoftSerial_service_rx(SoftSerial_t *pSerial);
 inline void          SoftSerial_service_tx(SoftSerial_t *pSerial);
 inline unsigned char SoftSerial_read(SoftSerial_t *pSerial, unsigned char *pStr, unsigned char nMaxLen);
 inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr);
+
 inline unsigned char SoftSerial_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs);
+
+void                 SoftSerial_cmd_cfg(Ring_t * pBuffer, unsigned char *pArgs);
 void                 SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs);

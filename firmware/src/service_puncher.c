@@ -23,10 +23,11 @@ void Puncher_init(unsigned char bEnabled, unsigned char nMode){
     MasterPuncher.TimeAdvance = 60;
     MasterPuncher.TimeGap2    = 5;
     
-    MasterPuncher.Output      = Transcoder_new(PUNCHER_BUFFER_SIZE);
+    MasterPuncher.Output      = Transcoder_new(Puncher_sizeOutput);
     MasterPuncher.Output->Configs = nMode;
     
-    PUNCHER_TRIS = 0;
+    PUNCHER_TRIS = 0; // All outputs
+    PUNCHER_LAT  = 0;
     
     MasterPuncher.Enabled      = bEnabled;
 }
@@ -97,6 +98,10 @@ void Puncher_service(void){
     else if (MasterPuncher.State == 5){
         MasterPuncher.State = 0;
     }
+    // Debug
+    //byte2binstr(sStr1, PUNCHER_LAT);
+    //printf("> %s\r\n", sStr1);
+
 }
 
 
