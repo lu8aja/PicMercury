@@ -66,7 +66,7 @@ void          Music_service(void);
 unsigned char Music_getMidiPeriod(unsigned char nNote);
 void          Music_setSingleTone(const unsigned char nPeriod, const unsigned char nTime);
 void          Music_getStatus(unsigned char *pStatus);
-void          Music_cmd(Ring_t * pBuffer, unsigned char *pArgs);
+void          Music_cmd(unsigned char idBuffer, unsigned char *pArgs);
 
 void Music_init(void){
     MasterMidi.address    = EEPROM_read(EEDATA_MIDI_ADDRESS);
@@ -249,16 +249,16 @@ void Music_getStatus(unsigned char *pStatus){
 }
 
 
-inline unsigned char Music_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
+inline unsigned char Music_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "music") || strequal(pCommand, "tone") || strequal(pCommand, "t")){
-        Music_cmd(pBuffer, pArgs);
+        Music_cmd(idBuffer, pArgs);
         return 1;
     }
     return 0;
 }
 
 
-void Music_cmd(Ring_t * pBuffer, unsigned char *pArgs){
+void Music_cmd(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -385,7 +385,7 @@ void Music_cmd(Ring_t * pBuffer, unsigned char *pArgs){
             iPeriod = 0;
         }
         else {
-            iPeriod = (unsigned int) MasterClockTickCount * 500 / iFreq;
+            iPeriod = (unsigned int) System_ClockTickCount * 500 / iFreq;
         }
         if (iPeriod < 1 || iPeriod > 255){
             bOK = false;
@@ -402,5 +402,5 @@ void Music_cmd(Ring_t * pBuffer, unsigned char *pArgs){
         Music_getStatus(sStr5);
     }
     strcat(sReply, sStr5);
-    printReply(pBuffer, bOK, "MUSIC", sReply);
+    printReply(idBuffer, bOK, "MUSIC", sReply);
 }

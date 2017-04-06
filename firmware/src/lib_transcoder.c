@@ -58,12 +58,15 @@ Transcoder_t * Transcoder_new(const unsigned char nSize){
     
     if (!pTranscoder){
         // Could not allocate the heap
+        System.Error.PuncherOutput = 1;
         return NULL;
     }
     
     pTranscoder->Ring = ring_new(nSize);
 
     if (!pTranscoder->Ring){
+        Heap_free(pTranscoder);
+        System.Error.PuncherOutput = 1;
         // Could not allocate the ring buffer
         return NULL;
     }

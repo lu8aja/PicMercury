@@ -74,7 +74,7 @@
     #define CFG_I2C_ADDRESS_CONSOLE 0b00010000 // Not actually used over the wire because it is master
     #define CFG_I2C_ADDRESS_PUNCHER 0b00100000
     #define CFG_I2C_ADDRESS_READER  0b01000000
-    #define CFG_I2C_ADDRESS_CRTS    0b10000000
+    #define CFG_I2C_ADDRESS_MONITOR    0b10000000
 
 /*** SoftSerial Related ***/
     #define CFG_SOFTSERIAL_TX_Port        'B'

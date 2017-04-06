@@ -26,10 +26,15 @@ inline void I2C_Master_init(void){
     I2C.Input  = ring_new(I2C_sizeInput);
     I2C.Output = ring_new(I2C_sizeOutput);
 
+    System.Error.I2cInput  = (I2C.Input  && I2C.Input->Buffer)  ? 0 : 1;
+    System.Error.I2cOutput = (I2C.Output && I2C.Output->Buffer) ? 0 : 1;
+    
     if (!I2C.Input || !I2C.Output){
         I2C.State = 255; // Not enough heap for Master buffers
         return;
     }
+    
+    System.Buffers[1] = I2C.Output;
     
     //INTCON2bits.RBPU = 0; // Pullups
     
@@ -56,6 +61,8 @@ inline void I2C_Master_init(void){
 
 inline void I2C_Master_service(void){
     unsigned char nChar;
+    unsigned char idFrom;
+    unsigned char idTo;
     unsigned char idBuffer;
 
     if (!I2C_Enabled){
@@ -63,22 +70,58 @@ inline void I2C_Master_service(void){
     }
 
     if (I2C.Execute){
-        // At master, this passes a msg from I2C to the target buffer
         nChar = ring_findChr(I2C.Input, I2C_EndOfMsg, 0);
-        if (nChar < 2){
+        if (nChar < 3){
             nChar++;
             while (nChar--) ring_get(I2C.Input);
-            // Todo: Right now we are notifying the error to the local USB, not really the target buffer
-            printReply(0, 2, "I2CM", txtErrorCorrupt);
+            printReply(0, 2, "I2C", txtErrorCorrupt);
         }
         else if (nChar == 255){
             I2C.Execute = 0;
         }
-        else if(nChar != 255){
-            idBuffer = ring_get(I2C.Input);
-            ring_str(I2C.Input, sReply,  nChar - 1, 0);
-            ring_get(I2C.Input); // Discard EoM
-            printReply(idBuffer, 3, "I2C", sReply);
+        else {
+            idTo   = ring_get(I2C.Input);
+            idFrom = ring_get(I2C.Input);
+            nChar--;
+            nChar--;
+            if (nChar >= sizeof(bufCommand)){
+                printReply(0, 2, "I2C", txtErrorTooBig);
+                if (idFrom){
+                    ring_write(I2C.Output, idFrom);
+                    ring_write(I2C.Output, idTo);
+                    printReply(1, 2, "I2C", txtErrorTooBig);
+                    ring_write(I2C.Output, I2C_EndOfMsg);
+                }
+            }
+            else{
+                ring_str(I2C.Input, bufCommand,  nChar, 0);
+                ring_get(I2C.Input); // Discard EoM
+                
+                if ((idTo & 0xf0) != I2C_Address_Master){
+                    // A slave is sending a message to another slave, relay it
+                    I2C_send(idFrom, 0, idTo, 0, bufCommand);
+                }
+                else{
+                    // Addressed to master
+                    idBuffer = (idTo & 0x0e) >> 1;
+                    if (bufCommand[0] == '$'){
+                        // Command received
+                        printReply(0, 8, "I2C", bufCommand);
+                        ring_write(I2C.Output, idFrom);
+                        ring_write(I2C.Output, idTo);
+                        APP_executeCommand(1, &bufCommand[1]);
+                        ring_write(I2C.Output, I2C_EndOfMsg);
+                    }
+                    else if(idBuffer == 0){
+                        // Message received for USB
+                        printReply(0, 3, "I2C", bufCommand);
+                    }
+                    else if(System.Buffers[idBuffer]){
+                        // Message received for another buffer
+                        ring_append(System.Buffers[idBuffer], bufCommand);
+                    }
+                }
+            }
         }
     }
 
@@ -131,7 +174,7 @@ inline void I2C_Master_service(void){
         }
         else if (nChar < 3){
             // The EOM flag should never be in positions 
-            // 0 (address), 1 (requestor) or 2 (first character of command)
+            // 0 (address TO), 1 (requestor FROM) or 2 (first character of command)
             // as that would imply an empty msg.
             // To recover, lets read them out and retry the buffer later
             nChar++;
@@ -143,7 +186,7 @@ inline void I2C_Master_service(void){
             ring_read(I2C.Output, &I2C.Address);
             ring_read(I2C.Output, &I2C.Requestor);
             
-            #if I2C_Debug > 7
+            #if I2C_Debug > 4
                 ring_assert(I2C.Output, sStr5, sizeof(sStr5), 0);
                 printf("[A=%02x][R=%02x][%s]", I2C.Address, I2C.Requestor, sStr5);
             #endif
@@ -219,7 +262,7 @@ void I2C_Master_interrupt(void){
                 break;
             } 
             nChar = ring_get(I2C.Output);
-            #if I2C_Debug > 8
+            #if I2C_Debug > 6
                 if (nChar < 32) printf("(%02x)", nChar); else putch(nChar);
             #endif
             I2C_Buffer = nChar;
@@ -282,7 +325,7 @@ void I2C_Master_interrupt(void){
         case I2C_STATE_Read_ReceiveBytes: 
             // Get the number of bytes to read
             I2C.SlaveLen = I2C_Buffer;
-            #if I2C_Debug > 8
+            #if I2C_Debug > 7
                 printf("(n=%u)", I2C.SlaveLen);
             #endif
 
@@ -313,7 +356,7 @@ void I2C_Master_interrupt(void){
         case I2C_STATE_Read_ReceiveData: 
             nChar = I2C_Buffer;
             if (!ring_write(I2C.Input, nChar)){
-                // We run out of room
+                // We run out of space
                 //I2C.State = I2C_STATE_Read_MustStop;
                 #if I2C_Debug > 8
                     putch('E');
@@ -327,11 +370,9 @@ void I2C_Master_interrupt(void){
             if (nChar == I2C_EndOfMsg){
                 I2C.Execute = 1;
             }
-            #if I2C_Debug > 8
+            #if I2C_Debug > 6
                 if (nChar < 32) printf("(%02x)", nChar); else putch(nChar);
             #endif
-
-            ring_dump(I2C.Input, &bufUsbOutput[posOutput]);
 
             I2C.SlaveLen--;
             if (I2C.SlaveLen){
@@ -381,6 +422,8 @@ inline void I2C_Slave_init(void){
         return;
     }
 
+    System.Buffers[1] = I2C.Output;
+    
     I2C.Slave   = 1;           // Slave
     I2C.Execute = 0;
     I2C.State   = 0;           // State machine
@@ -399,31 +442,57 @@ inline void I2C_Slave_init(void){
 
 inline void I2C_Slave_service(void){
     unsigned char nChar;
-    unsigned char idBuffer;
+    unsigned char idTo;
+    unsigned char idFrom;
+    unsigned char idBuffer = 0;
+    
     if (I2C.Execute){
         nChar = ring_findChr(I2C.Input, I2C_EndOfMsg, 0);
-        if (nChar < 2){
+        if (nChar < 3){
             nChar++;
             while (nChar--) ring_get(I2C.Input);
-            printReply(0, 2, "I2CS", txtErrorCorrupt);
+            printReply(0, 2, "I2C", txtErrorCorrupt);
         }
         else if (nChar == 255){
             I2C.Execute = 0;
         }
         else {
-            idBuffer = ring_get(I2C.Input);
-            ring_write(I2C.Output, idBuffer);
+            idTo   = ring_get(I2C.Input);
+            idFrom = ring_get(I2C.Input);
+            nChar--;
+            nChar--;
             if (nChar >= sizeof(bufCommand)){
-                printReply(I2C.Output, 2, "I2C", txtErrorTooBig);
-                ring_write(I2C.Output, I2C_EndOfMsg);
+                printReply(0, 2, "I2C", txtErrorTooBig);
+                if (idFrom){
+                    ring_write(I2C.Output, idFrom);
+                    ring_write(I2C.Output, idTo);
+                    printReply(1, 2, "I2C", txtErrorTooBig);
+                    ring_write(I2C.Output, I2C_EndOfMsg);
+                }
             }
             else{
-                print("\r\nI2C EXEC SLV: ");        
-                ring_str(I2C.Input, bufCommand,  nChar - 1, 0);
-                print(bufCommand);
+                idBuffer = (idTo & 0x0e) >> 1;
+                
+                ring_str(I2C.Input, bufCommand,  nChar, 0);
                 ring_get(I2C.Input); // Discard EoM
-                APP_executeCommand(I2C.Output, bufCommand);
-                ring_write(I2C.Output, I2C_EndOfMsg);
+                
+                if (bufCommand[0] == '$'){
+                    // Command received
+                    printReply(0, 8, "I2C", bufCommand);
+                    ring_write(I2C.Output, idFrom);
+                    ring_write(I2C.Output, idTo);
+                    APP_executeCommand(1, &bufCommand[1]);
+                    ring_write(I2C.Output, I2C_EndOfMsg);
+                }
+                else if(idBuffer == 0){
+                    // Message received for USB
+                    printReply(0, 3, "I2C", bufCommand);
+                }
+                else if(System.Buffers[idBuffer]){
+                    // Message received for another buffer
+                    ring_append(System.Buffers[idBuffer], bufCommand);
+                }
+                
             }
         }
 
@@ -446,11 +515,20 @@ inline void I2C_Slave_interrupt(void){
     if (SSPSTATbits.S){
         nChar = SSPBUF; // Read the previous value to clear the buffer
         // Payload transfers
-        if (SSPCON1bits.SSPOV || SSPCON1bits.WCOL){ //If overflow or collision
+        if (SSPCON1bits.SSPOV){ //If overflow or collision
             #if I2C_Debug > 8
                 putch('E');
             #endif
             SSPCON1bits.SSPOV = 0; // Clear the overflow flag
+            
+            // I2C.State = 219;// todo!!!
+        }
+
+        if (SSPCON1bits.WCOL){ //If overflow or collision
+            #if I2C_Debug > 8
+                putch('e');
+            #endif
+            
             SSPCON1bits.WCOL  = 0; // Clear the collision bit
             // I2C.State = 219;// todo!!!
         }
@@ -463,7 +541,7 @@ inline void I2C_Slave_interrupt(void){
             
             // check General Call (TODO!!!!)
             #if I2C_Debug > 8
-                //printf("%02x", nChar);
+                printf("[%02x]", nChar);
             #endif
             if (SSPSTATbits.RW){ 
                 // Address + Read: Send the pending output buffer length
@@ -471,6 +549,16 @@ inline void I2C_Slave_interrupt(void){
                 #if I2C_Debug > 8
                     putch('L');
                 #endif
+            }
+            else{
+                // Address + Write
+                if (!ring_is_empty(I2C.Input) && ring_tail(I2C.Input) != I2C_EndOfMsg){
+                    // Add EOM to ensure proper msg separation in the event of corruption on the line
+                    ring_write(I2C.Input, I2C_EndOfMsg);
+                }
+
+                // Append the address
+                ring_write(I2C.Input, nChar);
             }
         }
         else {
@@ -520,35 +608,42 @@ inline void I2C_tick(void){
     }
 }
 
-unsigned char I2C_send(unsigned char idBuffer, unsigned char nAddress, const unsigned char *pCommand){
+unsigned char I2C_send(unsigned char addrFrom, unsigned char idFrom, unsigned char addrTo, unsigned char idTo, const unsigned char *pMsg){
     // Address 0x00 is General Call (Master -> All Slaves)
-    // Address 0x01 Is Master Receives (Slave -> Master) Note: In this case the msg will simply not have an address
+    // Address 0x10 Is Master Receives (Slave -> Master)
     // Others are Master -> Slave
 
-    if (pCommand[0] == 0){
+    if (!I2C_Enabled){
+        return 253;
+    }
+    
+    if (pMsg[0] == 0){
         // Error: Trying to send empty packet
         return 252;
     }
-    if (nAddress > 1 && nAddress & I2C.Slaves == 0){
+    if (addrTo != I2C_Address_Master && addrTo & I2C.Slaves == 0){
         // Sending to a slave, check if it is connected
         return 251;
     }
     
-    
-    unsigned char nLen = strlen(pCommand) + 3;
+    unsigned char nLen = strlen(pMsg) + 3;
     if (nLen > ring_available(I2C.Output)){
         return 250;
     }
-    if (nAddress != 1){
-        ring_write(I2C.Output, nAddress);
+    
+    if (!addrFrom){
+        addrFrom = I2C.Slave ? I2C.Address : I2C_Address_Master;
     }
-    ring_write(I2C.Output, idBuffer);
-    ring_append(I2C.Output, pCommand);
+
+    addrFrom |= (idFrom << 1);
+    addrTo   |= (idTo << 1);
+    
+    ring_write(I2C.Output, addrTo);
+    ring_write(I2C.Output, addrFrom);
+    ring_append(I2C.Output, pMsg);
     ring_write(I2C.Output, I2C_EndOfMsg);
     I2C.Tick = 0;
     
-//ring_dump(I2C.Output, sStr5);
-//print(sStr5);
     return 0;
 }
 
@@ -564,7 +659,7 @@ void I2C_discardMsg(const unsigned char *pMsg){
     while (nChar != I2C_EndOfMsg);
     
     if (pMsg){
-        printReply(I2C.Requestor, 2, "I2C", pMsg);
+        printReply((I2C.Requestor & 0x0e) >> 1, 2, "I2C", pMsg);
     }
     
     I2C.Requestor = 0;
@@ -607,24 +702,86 @@ void I2C_dump(void){
     
 }
 
-inline unsigned char I2C_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
+inline unsigned char I2C_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs){
+    if (strequal(pCommand, "cfg i2c")){
+        I2C_cmd_cfg(idBuffer, pArgs);
+        return 1;
+    }
     if (strequal(pCommand, "i2c")){
-        I2C_cmd(pBuffer, pArgs);
+        I2C_cmd(idBuffer, pArgs);
         return 1;
     }
     return 0;
 }
 
-
-void I2C_cmd(Ring_t * pBuffer, unsigned char *pArgs){
+void I2C_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
-    unsigned char nResult;
-    unsigned char nAddress = 0;
-    unsigned char *pArg = NULL;
-    unsigned char *pTxt = NULL;
+    bool bShowStatus = true;
+    unsigned char *pArg   = NULL;
    
     sReply[0] = 0x00;
 
+    if (pArgs && *pArgs){
+        pArg    = strtok(pArgs, txtWhitespace);
+        if (pArg){
+            str2lower(pArg);
+        }
+    }
+       
+    if (pArg == NULL){
+        
+    }
+    else if (strequal(pArg, "in")){
+        ring_dump(I2C.Input, sReply);
+        bShowStatus = false;
+    }
+    else if (strequal(pArg, "out")){
+        ring_dump(I2C.Output, sReply);
+        bShowStatus = false;
+    }
+    else if (strequal(pArg, "on")){
+        ring_clear(I2C.Input);
+        ring_clear(I2C.Output);
+        I2C_Enabled = 1;
+        strcpy(sReply, txtOn);
+    }
+    else if (strequal(pArg, "off")){
+        I2C_Enabled = 0;
+        strcpy(sReply, txtOff);
+    }
+    
+    if (bShowStatus){
+        byte2binstr(sStr1, SSPSTAT);
+        byte2binstr(sStr2, SSPCON1);
+        byte2binstr(sStr3, SSPCON2);
+        byte2binstr(sStr4, I2C.Slaves);
+
+        sprintf(&sReply[strlen(sReply)], "S=%u I=%u O=%u Sl=%u Ss=%s STAT=%s CON1=%s CON2=%s", 
+            I2C.State,
+            ring_strlen(I2C.Input),
+            ring_strlen(I2C.Output),  
+            (I2C.Address >> 4),
+            sStr4,
+            sStr1,
+            sStr2,
+            sStr3
+        );
+    }
+
+    printReply(idBuffer, bOK, "I2C", sReply);
+}
+
+void I2C_cmd(unsigned char idBuffer, unsigned char *pArgs){
+    bool bOK = true;
+    unsigned char nResult;
+    unsigned char nAddress = 0;
+    unsigned char idTo     = 0;
+    unsigned char *pArg    = NULL;
+    unsigned char *pTxt    = NULL;
+   
+    sReply[0] = 0x00;
+
+    // Split the two mandatory arguments
     if (pArgs && *pArgs){
         pArg    = strtok(pArgs, txtWhitespace);
         if (pArg){
@@ -635,43 +792,13 @@ void I2C_cmd(Ring_t * pBuffer, unsigned char *pArgs){
             }
         }
     }
-    
-    byte2binstr(sStr1, SSPSTAT);
-    byte2binstr(sStr2, SSPCON1);
-    byte2binstr(sStr3, SSPCON2);
-    byte2binstr(sStr4, I2C.Slaves);
-    sprintf(sReply, "S=%u I=%u O=%u Sl=%u Ss=%s STAT=%s CON1=%s CON2=%s\r\n", 
-        I2C.State,
-        ring_strlen(I2C.Input),
-        ring_strlen(I2C.Output),  
-        (I2C.Address >> 4),
-        sStr4,
-        sStr1,
-        sStr2,
-        sStr3
-    );
 
-    if (pArg == NULL ){
-        
-    }
-    else if (strequal(pArg, "on")){
-        I2C_Enabled = 1;
-        strcpy(sReply, txtOn);
-        //strcat(sReply, txtCrLf);
-        //strcat(sReply, sStr5);
-    }
-    else if (strequal(pArg, "off")){
-        I2C_Enabled = 0;
-        strcpy(sReply, txtOff);
-        //strcat(sReply, txtCrLf);
-        //strcat(sReply, sStr5);
-    }
-    else if(pArg && !pTxt){
+    if (pArg == NULL || pTxt == NULL){
         bOK = false;
         strcpy(sReply, txtErrorMissingArgument);
     }
     else{
-        switch (*pArg){
+        switch (pArg[0]){
             #ifdef DEVICE_I2C_MASTER
                 case 'p': 
                     nAddress = CFG_I2C_ADDRESS_PUNCHER; 
@@ -683,22 +810,27 @@ void I2C_cmd(Ring_t * pBuffer, unsigned char *pArgs){
                     nAddress = CFG_I2C_ADDRESS_CONSOLE; 
                     break;
                 case 'm': 
-                    nAddress = CFG_I2C_ADDRESS_CRTS;    
+                    nAddress = CFG_I2C_ADDRESS_MONITOR;    
                     break;
             #else
                 case 'm': 
-                    nAddress = CFG_I2C_ADDRESS_MASTER;    
+                    nAddress = I2C_Address_Master;    
                     break;
             #endif
         }
         if (nAddress){
-            nResult = I2C_send(0, nAddress, pTxt);
+            if (pArg[1] >= '0' && pArg[1] < '8'){
+                idTo = pArg[1] - 48;
+            }
+            if (pTxt[0] == '$'){
+                // Commands must always be directed to port 0
+                idTo = 0;
+            }
+            
+            nResult = I2C_send(0, idBuffer, nAddress, idTo, pTxt);
             if (nResult){
                 bOK = false;
                 sprintf(sReply, "%u", nResult);
-            }
-            else{
-                strcpy(sReply, sStr5);
             }
         }
         else{
@@ -707,6 +839,6 @@ void I2C_cmd(Ring_t * pBuffer, unsigned char *pArgs){
         }     
     }
 
-    printReply(pBuffer, bOK, "I2C", sReply);
+    printReply(idBuffer, bOK, "I2C", sReply);
 }
 

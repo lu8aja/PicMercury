@@ -57,11 +57,13 @@ extern i2c_t I2C;
 #endif
 
 // Slave pooling: Important, changing the addresses scheme, implies brutal changes to I2C.Slaves (Statuses))
-#define I2C_RecoveryTicks    100       // ms between Slaves pool contacts and for recovery from errors
+#define I2C_RecoveryTicks    50        // ms between Slaves pool contacts and for recovery from errors
 #define I2C_SeparationTicks  2         // ms between a Write and the next read (not implemented)
-#define I2C_Pool_Min         0x10      // First Slave Address in pool
+#define I2C_Pool_Min         0x20      // First Slave Address in pool
 #define I2C_Pool_Max         0x80      // Last Slave Address in pool
 #define I2C_Pool_next(a)     (a << 1)  // Delta function used when pooling slaves
+
+#define I2C_Address_Master   0x10
 
 // I2C Control registers, you should not need to change them
 #define I2C_Cfg_Master_Control_1 0b00101000  // SSPEN = 1 Enable /CKP = 0 /SSPM[4] = 1000 I2C Master Mode
@@ -69,7 +71,7 @@ extern i2c_t I2C;
 #define I2C_Cfg_Master_Status    0b10000000  // Disable slew rate
 
 #define I2C_Cfg_Slave_Control_1  0b00110110  // SSPEN = 1 Enable /CKP = 1 /SSPM[4] = 0110 I2C Slave Mode
-#define I2C_Cfg_Slave_Control_2  0b00000001  // SEN = 1
+#define I2C_Cfg_Slave_Control_2  0b00001111  // ADMSK[5..1] = 00111 / SEN [1] = 1
 #define I2C_Cfg_Slave_Status     0b10000000  // Disable slew rate
 
 // HAL
@@ -136,9 +138,12 @@ inline void   I2C_Slave_init(void);
 inline void   I2C_Slave_service(void);
 inline void   I2C_Slave_interrupt(void);
 inline void   I2C_tick(void);
-unsigned char I2C_send(unsigned char idBuffer, unsigned char addr, const unsigned char *pCommand);
+
+unsigned char I2C_send(unsigned char addrFrom, unsigned char idFrom, unsigned char addrTo, unsigned char idTo, const unsigned char *pMsg);
 void          I2C_reportResult(unsigned char idBuffer, unsigned char *pStr);
 void          I2C_discardMsg(const unsigned char *pMsg);
-inline unsigned char I2C_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs);
-void          I2C_cmd(Ring_t * pBuffer, unsigned char *pArgs);
+
+inline unsigned char I2C_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs);
+void          I2C_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs);
+void          I2C_cmd(unsigned char idBuffer, unsigned char *pArgs);
 

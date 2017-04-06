@@ -42,7 +42,7 @@ monitor_t MasterMonitor;
 
 void Monitor_service(void);
 void Monitor_checkPins(unsigned char cPortName);
-void Monitor_cmd(Ring_t * pBuffer, unsigned char *pArgs);
+void Monitor_cmd(unsigned char idBuffer, unsigned char *pArgs);
 
 
 
@@ -51,7 +51,7 @@ void Monitor_cmd(Ring_t * pBuffer, unsigned char *pArgs);
 void Monitor_service(void){
     // Notifications handling
     if (MasterMonitor.Config.Enabled
-        && posCommand  == 0 
+        && posUsbCommand  == 0 
         && posOutput   == 0 
         && USB_isOutputAvailable()
     ){
@@ -100,15 +100,15 @@ void Monitor_checkPins(unsigned char cPortName){
     }
 }
 
-inline unsigned char Monitor_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
+inline unsigned char Monitor_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "monitor")){
-        Monitor_cmd(pBuffer, pArgs);
+        Monitor_cmd(idBuffer, pArgs);
         return 1;
     }
     return 0;
 }
 
-void Monitor_cmd(Ring_t * pBuffer, unsigned char *pArgs){
+void Monitor_cmd(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pS = sReply;
     unsigned char nPort;
@@ -191,5 +191,5 @@ void Monitor_cmd(Ring_t * pBuffer, unsigned char *pArgs){
         strcpy(sReply, txtErrorUnknownArgument);
     }
 
-    printReply(pBuffer, bOK, "MONITOR", sReply);
+    printReply(idBuffer, bOK, "MONITOR", sReply);
 }

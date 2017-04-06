@@ -43,7 +43,7 @@
 
 inline void   APP_init(void);
 inline void   APP_main(void);
-void          APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine);
+void          APP_executeCommand(unsigned char idBuffer, unsigned char *pLine);
 
 
 /** FUNCTIONS *******************************************************/
@@ -51,6 +51,17 @@ inline void APP_init(void){
     ADCON1 = 0b00001111;  // We are not using any analog input
                           // This is specially important for I2C
 
+    System.Errors = 0;
+    System.Clock.NotifyTime = 60000;
+    System.Buffers[0] = 0;
+    System.Buffers[1] = 0;
+    System.Buffers[2] = 0;
+    System.Buffers[3] = 0;
+    System.Buffers[4] = 0;
+    System.Buffers[5] = 0;
+    System.Buffers[6] = 0;
+    System.Buffers[7] = 0;
+    
     #ifdef LIB_KEYS
         Keys_init();
     #endif
@@ -111,7 +122,7 @@ inline void APP_init(void){
             #elif defined(DEVICE_READER)
                 I2C.Address = CFG_I2C_ADDRESS_READER;
             #elif defined(DEVICE_CRTS)
-                I2C.Address = CFG_I2C_ADDRESS_CRTS;
+                I2C.Address = CFG_I2C_ADDRESS_MONITOR;
             #else // Some other unknown device!?
                 I2C.Address = 0b01111111;
             #endif
@@ -120,7 +131,7 @@ inline void APP_init(void){
     #endif
 
 	// Timer0 setup (check globals)
-	T0CON               = MasterClockTimer;
+	T0CON               = System_ClockTimer;
 	INTCONbits.TMR0IE   = 1;
 	T0CONbits.TMR0ON    = 1;          // Enable
     
@@ -148,15 +159,15 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
         #endif
         
         // MASTER CLOCK
-        if (MasterClock.Tick){
-            MasterClock.Tick--;
+        if (System.Clock.Tick){
+            System.Clock.Tick--;
         }
         else {
-            MasterClock.Tick = MasterClockTickCount;
+            System.Clock.Tick = System_ClockTickCount;
             // All counters that need ms updates
             
             // MASTER CLOCK MS
-            MasterClock.MS++;
+            System.Clock.MS++;
             
             // SOFT SERIAL ms tick
             #ifdef LIB_SOFTSERIAL
@@ -193,20 +204,22 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
             #endif
 
             // MASTER NOTIFY
-            if (MasterClock.NotifyCounter){
-                MasterClock.NotifyCounter--;
+            if (System.Clock.NotifyCounter){
+                System.Clock.NotifyCounter--;
             }
-            else if (MasterClock.NotifyTime){
-                MasterClock.NotifyCounter = MasterClock.NotifyTime;
-                if (   posCommand == 0 
-                    && posOutput  == 0 
-                ){
-                    unsigned char tick = MasterClock.Tick;
-                    MasterClock.NotifyNow = Clock_getTime();
+            else {
+                if (System.Config.Reset){
+                    System.Config.Reset = 0;
+                    Reset();
+                }
+                if (System.Clock.NotifyTime){
+                    System.Clock.NotifyCounter = System.Clock.NotifyTime;
+                    if (posUsbCommand == 0 && posOutput  == 0){
+                        System.Clock.NotifyNow = Clock_getTime();
+                    }
                 }
             }
         }
-        
             
 		INTCONbits.TMR0IF = 0;
 	}
@@ -231,7 +244,7 @@ inline void APP_main(){
     #endif
     
     #ifdef LIB_PUNCHER
-    if (MasterPuncher.Enabled && !MasterPuncher.Tick){
+    if (Puncher.Enabled && !Puncher.Tick){
         Puncher_service();
     }
     #endif
@@ -247,10 +260,10 @@ inline void APP_main(){
         Leds_service();
     #endif
 
-    if (MasterClock.NotifyNow){
-        Clock_getStr(sStr1, MasterClock.NotifyNow);
+    if (System.Clock.NotifyNow){
+        Clock_getStr(sStr1, System.Clock.NotifyNow);
         printReply(0, 3, "UPTIME", sStr1);
-        MasterClock.NotifyNow = 0;
+        System.Clock.NotifyNow = 0;
     }
     
     // Program
@@ -284,7 +297,7 @@ inline void APP_main(){
 }
 
 
-void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
+void APP_executeCommand(unsigned char idBuffer, unsigned char *pLine){
     unsigned char *pCommand;
     unsigned char *pArgs    = NULL;
     unsigned char *pArg1    = NULL;
@@ -304,78 +317,81 @@ void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
     // Get the command
     pCommand = strtok(pLine, txtWhitespace);
 
-    if (pCommand == NULL){ 
+    if (pCommand == NULL || (pCommand[0] == '$' && strlen(pCommand) == 1)){ 
         // Likely a line starting with space
-        printReply(pBuffer, 0, txtErrorMissingCommand, pCommand);
+        printReply(idBuffer, 0, txtErrorMissingCommand, pCommand);
         return;
     }
+    if (pCommand[0] == '$'){
+        // We support both direct commands (as used at USB for convenience) and commands starting with $
+        pCommand++;
+    }
+    
     // Get the arguments
-    else{
-        str2lower(pCommand);    
-            
-        pArgs = &pLine[strlen(pCommand) + 1];
-        
-        if (strequal(pCommand, txtCmdConfig)){
-            // CONFIG special command
-            
-            // As it is a config, get the first argument to know what you are configuring
-            pArg1 = strtok(pArgs, txtWhitespace);
-            if (pArg1 == NULL){
-                printReply(pBuffer, 0, txtErrorUnknownArgument, 0);
-                return;
-            }
-            
-            str2lower(pArg1);    
+    str2lower(pCommand);    
 
-            // This is done so if you enter: "cfg serial blah"
-            // The command ends up being "cfg serial" and the arguments "blah"
-            // It is done this way to make it easy for the services to identify
-            // which one you are configuring
-            
-            // Fuse together command with arg1 changing the null terminator to a space
-            pCommand[strlen(pCommand)] = ' ';
-            // Reposition arguments pointer
-            pArgs += strlen(pArg1);           
-            pArgs++;
+    pArgs = &pLine[strlen(pCommand) + 1];
+
+    if (strequal(pCommand, txtCmdConfig)){
+        // CONFIG special command
+
+        // As it is a config, get the first argument to know what you are configuring
+        pArg1 = strtok(pArgs, txtWhitespace);
+        if (pArg1 == NULL){
+            printReply(idBuffer, 0, txtErrorUnknownArgument, 0);
+            return;
         }
+
+        str2lower(pArg1);    
+
+        // This is done so if you enter: "cfg serial blah"
+        // The command ends up being "cfg serial" and the arguments "blah"
+        // It is done this way to make it easy for the services to identify
+        // which one you are configuring
+
+        // Fuse together command with arg1 changing the null terminator to a space
+        pCommand[strlen(pCommand)] = ' ';
+        // Reposition arguments pointer
+        pArgs += strlen(pArg1);           
+        pArgs++;
     }
 
-    printf("<%s><%s>\r\n", pCommand, pArgs);
+    //printf("<%s><%s>\r\n", pCommand, pArgs);
     
     #ifdef LIB_CMD
-        if (!nExecuted) nExecuted = Cmd_checkCmd(pBuffer, pCommand, pArgs);
+        if (!nExecuted) nExecuted = Cmd_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_I2C
-        if (!nExecuted) nExecuted = I2C_checkCmd(pBuffer, pCommand, pArgs);
+        if (!nExecuted) nExecuted = I2C_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_SOFTSERIAL
-        if (!nExecuted) nExecuted = SoftSerial_checkCmd(pBuffer, pCommand, pArgs);
+        if (!nExecuted) nExecuted = SoftSerial_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_PUNCHER
-        if (!nExecuted) nExecuted = Puncher_checkCmd(pBuffer, pCommand, pArgs);
+        if (!nExecuted) nExecuted = Puncher_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_MUSIC
-        if (!nExecuted) nExecuted = Music_checkCmd(pBuffer, pCommand, pArgs);
+        if (!nExecuted) nExecuted = Music_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_LEDS
-        if (!nExecuted) nExecuted = Leds_checkCmd(pBuffer, pCommand, pArgs);
+        if (!nExecuted) nExecuted = Leds_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_KEYS
-        if (!nExecuted) nExecuted = Keys_checkCmd(pBuffer, pCommand, pArgs);
+        if (!nExecuted) nExecuted = Keys_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_MONITOR
-        if (!nExecuted) nExecuted = Monitor_checkCmd(pBuffer, pCommand, pArgs);
+        if (!nExecuted) nExecuted = Monitor_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_PROGRAM
-        if (!nExecuted) nExecuted = Program_checkCmd(pBuffer, pCommand, pArgs);
+        if (!nExecuted) nExecuted = Program_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     if (!nExecuted){
@@ -383,13 +399,13 @@ void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
 
         // VERSION
         if (strequal(pCommand, "version") || strequal(pCommand, "ver")){
-            printReply(pBuffer, 1, "VERSION", txtVersion);
+            printReply(idBuffer, 1, "VERSION", txtVersion);
             nExecuted = 1;
         }
         // HEAP
         else if (strequal(pCommand, "heap")){
             sprintf(sReply, "%u of %u", Heap_Next - Heap, sizeof(Heap));
-            printReply(pBuffer, 1, "HEAP", sReply);
+            printReply(idBuffer, 1, "HEAP", sReply);
             nExecuted = 1;
         }
 
@@ -419,7 +435,7 @@ void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine){
         
     
     if (!nExecuted){
-        printReply(pBuffer, 0, txtErrorUnknownCommand, 0);
+        printReply(idBuffer, 0, txtErrorUnknownCommand, 0);
     }
 }
 

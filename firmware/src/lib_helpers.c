@@ -14,38 +14,49 @@
 #include "app_io.h"
 #include "service_usb.h"
 
-#if defined(LIB_LEDS) // Used for overflow beep only
+#if defined(LIB_LEDS) // Used for overflow light only
     #include "service_leds.h"
 #endif
-#if defined(LIB_MUSIC) // Used for overflow light only
+#if defined(LIB_MUSIC) // Used for overflow beep only
     #include "service_music.h"
 #endif
 
 /*** STDIO ***/
-void printReply(Ring_t * pBuffer, const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply){
-    if (pBuffer){
-        switch (nType){
-            case 0:
-                ring_append(pBuffer, "-ERROR ");
-                break;
-            case 1:
-                ring_append(pBuffer, "+OK ");
-                break;
-            case 2:
-                ring_append(pBuffer, "!ERROR ");
-                break;
-            case 3:
-                ring_append(pBuffer, "@OK ");
-                break;
+void printReply(unsigned char idBuffer, const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply){
+    Ring_t *pBuffer = 0;
+
+    if (idBuffer > 0 && idBuffer < 8){
+        pBuffer = System.Buffers[idBuffer];
+        if (pBuffer){
+            switch (nType){
+                case 0:
+                    ring_append(pBuffer, "-ERROR ");
+                    break;
+                case 1:
+                    ring_append(pBuffer, "+OK ");
+                    break;
+                case 2:
+                    ring_append(pBuffer, "!ERROR ");
+                    break;
+                case 3:
+                    ring_append(pBuffer, "@OK ");
+                    break;
+                case 8:
+                    ring_append(pBuffer, "$");
+                    break;
+            }
+            if (pCmd){
+                ring_append(pBuffer, pCmd);
+            }
+            if (pReply && pReply[0]){
+                if (pCmd) ring_append(pBuffer, ": ");
+                ring_append(pBuffer, pReply);
+            }
+            ring_append(pBuffer, txtCrLf);
+            return;
         }
-        ring_append(pBuffer, pCmd);
-        if (pReply && pReply[0]){
-            ring_append(pBuffer, ": ");
-            ring_append(pBuffer, pReply);
-        }
-        ring_append(pBuffer, txtCrLf);
-        return;
     }
+
     // USB
     if ( USB_getDeviceState() < CONFIGURED_STATE || USB_isDeviceSuspended()){
         return;
@@ -65,12 +76,11 @@ void printReply(Ring_t * pBuffer, const unsigned char nType, const unsigned char
             print("@OK ");
             break;
     }
-    while (*pCmd){
-        putch(*pCmd);
-        pCmd++;
+    if (pCmd){
+        print(pCmd);
     }
     if (pReply && strlen(pReply)){
-        print(": ");
+        if (pCmd) print(": ");
         print(pReply);
     }
     print(txtCrLf);
@@ -311,11 +321,11 @@ unsigned char hex2byte(unsigned char c){
 /*** CLOCK ***/
 
 unsigned long Clock_getTime(void){
-    unsigned char tick = MasterClock.Tick;
-    unsigned long ms   = MasterClock.MS;
-    if (tick != MasterClock.Tick){
+    unsigned char tick = System.Clock.Tick;
+    unsigned long ms   = System.Clock.MS;
+    if (tick != System.Clock.Tick){
         // This is to avoid interim changes as operations with "long" are not atomic
-        ms   = MasterClock.MS;
+        ms   = System.Clock.MS;
     }
     return ms;
 }

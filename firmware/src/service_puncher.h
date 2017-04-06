@@ -30,15 +30,15 @@ typedef struct {
     Transcoder_t *Output;      // Output buffer (must be binary safe))
 } Puncher_t;
 
-extern Puncher_t MasterPuncher;
+extern Puncher_t Puncher;
 
 
 void          Puncher_init(unsigned char bEnabled, unsigned char nMode);
 inline void   Puncher_tick(void);
 void          Puncher_service(void);
-inline unsigned char Puncher_write(unsigned char *pStr);
+inline unsigned char Puncher_write(const unsigned char *pStr);
 
-inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs);
+inline unsigned char Puncher_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs);
 
-void          Puncher_cmd_cfg(Ring_t * pBuffer, unsigned char *pArgs);
-void          Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs);
+void          Puncher_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs);
+void          Puncher_cmd(unsigned char idBuffer, unsigned char *pArgs);

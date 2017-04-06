@@ -3,9 +3,10 @@
 #include <stdbool.h>
 
 
-#include "app_main.h"
-#include "app_globals.h"
 
+#include "app_globals.h"
+#include "app_main.h"
+#include "service_program.h"
 #include "service_i2c.h"
 #include "service_keys.h"      // Keyboard diode matrix
 #include "service_leds.h"      
@@ -15,9 +16,7 @@
 const unsigned char *MasterPrograms[] = {
     "l steps 1\0d 38000\0t 440 5\0\0",
     "t play\0d 30000\0\0",
-    "t 500 2\0d 30000\0run 2\0\0",
-    "t keys\0d 500\0run keys\0\0",
-    "serial on\0d 50\0serial off\0\0"
+    "t 500 2\0d 30000\0run 2\0\0"
 };
 
 
@@ -26,8 +25,10 @@ unsigned char isPrime(unsigned int nNumber);
 
 
 unsigned char Program_custom_isPrime(unsigned char nStep){
-    unsigned int nNumber = MasterKeys.Input;
+    unsigned int nNumber;
     unsigned int nTest;
+    
+    nNumber = MasterProgram.Console ? MasterKeys.Input : MasterProgram.Input;
     
     if (nNumber){
         nTest = isPrime(nNumber);
@@ -47,15 +48,20 @@ unsigned char Program_custom_isPrime(unsigned char nStep){
     print(sStr5);
     
     // Punch
-    if (MasterKeys.Address & 512){
-        strcpy(sReply, "punch s ");
+    if ((MasterProgram.Console && MasterKeys.Address    & 512) 
+    || (!MasterProgram.Console && MasterProgram.Address & 512)
+    ){
+        strcpy(sReply, "$punch ");
         strcat(sReply, sStr5);
-        I2C_send(0, CFG_I2C_ADDRESS_PUNCHER, sReply);
+        I2C_send(0, 0, CFG_I2C_ADDRESS_PUNCHER, 0, sReply);
     }
-    else if (MasterKeys.Address & 256){
-        strcpy(sReply, "serial ");
+    // Serial
+    if ((MasterProgram.Console && MasterKeys.Address    & 256) 
+    || (!MasterProgram.Console && MasterProgram.Address & 256)
+    ){
+        strcpy(sReply, "$serial ");
         strcat(sReply, sStr5);
-        I2C_send(0, CFG_I2C_ADDRESS_PUNCHER, sReply);
+        I2C_send(0, 0, CFG_I2C_ADDRESS_PUNCHER, 0, sReply);
     }
     
     return 0;
@@ -65,10 +71,12 @@ unsigned char Program_custom_isPrime(unsigned char nStep){
 unsigned char Program_custom_calcPrimes(unsigned char nStep){
     static unsigned int nNumber = 1;
     static unsigned int nCol    = 0;
-    
+    unsigned int nMax;    
     unsigned int nTest;
     
-    if (MasterKeys.Function >> 2 != 0x40){
+    nMax = MasterProgram.Console ? MasterKeys.Input : MasterProgram.Input;
+
+    if (MasterProgram.Console && MasterKeys.Function >> 2 != 0x40){
         strcpy(sStr5, "\r\n- ABORTED -\r\n");
         nCol  = 0;
         nStep = 0;
@@ -85,7 +93,7 @@ unsigned char Program_custom_calcPrimes(unsigned char nStep){
     else {
         nNumber++;
         nNumber++;
-        while (nNumber < 65530){
+        while (nNumber <= nMax){
             nTest = isPrime(nNumber);    
             if (!nTest){
                 break;
@@ -94,7 +102,7 @@ unsigned char Program_custom_calcPrimes(unsigned char nStep){
             nNumber++;
         }
         
-        if (nNumber < 65530){
+        if (nNumber <= nMax){
             sprintf(sStr1, "%u, ", nNumber);
         }
         else{
@@ -117,15 +125,20 @@ unsigned char Program_custom_calcPrimes(unsigned char nStep){
     print(sStr5);
     
     // Punch
-    if (MasterKeys.Address & 512){
-        strcpy(sReply, "punch s ");
+    if ((MasterProgram.Console && MasterKeys.Address    & 512) 
+    || (!MasterProgram.Console && MasterProgram.Address & 512)
+    ){
+        strcpy(sReply, "$punch ");
         strcat(sReply, sStr5);
-        I2C_send(0, CFG_I2C_ADDRESS_PUNCHER, sReply);
+        I2C_send(0, 0, CFG_I2C_ADDRESS_PUNCHER, 0, sReply);
     }
-    else if (MasterKeys.Address & 256){
-        strcpy(sReply, "serial ");
+    // Serial
+    if ((MasterProgram.Console && MasterKeys.Address    & 256) 
+    || (!MasterProgram.Console && MasterProgram.Address & 256)
+    ){
+        strcpy(sReply, "$serial ");
         strcat(sReply, sStr5);
-        I2C_send(0, CFG_I2C_ADDRESS_PUNCHER, sReply);
+        I2C_send(0, 0, CFG_I2C_ADDRESS_PUNCHER, 0, sReply);
     }
     return nStep;
 }
@@ -134,10 +147,7 @@ unsigned char Program_custom_calcPrimes(unsigned char nStep){
 
 unsigned char isPrime(unsigned int nNumber){
     unsigned int nTest;
-    if (nNumber == 0){
-        return 1;
-    }
-    if (nNumber == 1){
+    if (nNumber == 0 || nNumber == 1){
         return 1;
     }
     if (nNumber == 2){
@@ -186,7 +196,7 @@ unsigned char Program_custom_doMusic(unsigned char nStep){
         else{
             bit_set(MasterLeds.Status, 0x0d);
             // Calculate period from frequency
-            nPeriod = (unsigned char) ((MasterClockTickCount * 500) / iFreq);
+            nPeriod = (unsigned char) ((System_ClockTickCount * 500) / iFreq);
             Music_setSingleTone(nPeriod, 2000);
             sprintf(sReply, "T=%u", nPeriod);
             nStep   = 1;

@@ -224,7 +224,7 @@ void Leds_updateLeds_original(void){
         LEDS_ANODES_LAT   |= LEDS_ANODES;    // We always force a 1 on B (Anode)
     }
 
-    //if (MasterDebug > 2) printf("\r\n!OK LED %d on\r\n", nCurrentLed);
+    //if (System.Config.Debug > 2) printf("\r\n!OK LED %d on\r\n", nCurrentLed);
 
     // If the led is the same one, we do not do anything as everything should already be set
 }
@@ -271,16 +271,16 @@ void Leds_updateUsb(void){
 }
 
 
-inline unsigned char Leds_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
+inline unsigned char Leds_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "led") || strequal(pCommand, "l")){
-        Leds_cmd(pBuffer, pArgs);
+        Leds_cmd(idBuffer, pArgs);
         return 1;
     }
     return 0;
 }
 
 
-void Leds_cmd(Ring_t * pBuffer, unsigned char *pArgs){
+void Leds_cmd(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -352,5 +352,5 @@ void Leds_cmd(Ring_t * pBuffer, unsigned char *pArgs){
     int2binstr(sStr1, MasterLeds.Status);
     strcat(sReply, sStr1);
     
-    printReply(pBuffer, bOK, "LED", sReply);
+    printReply(idBuffer, bOK, "LED", sReply);
 }

@@ -13,28 +13,31 @@
 
 #include "service_puncher.h"
 
-Puncher_t MasterPuncher = {0,0,0,0,0,0,0,0};
+Puncher_t Puncher = {0,0,0,0,0,0,0,0};
 
 void Puncher_init(unsigned char bEnabled, unsigned char nMode){
-    MasterPuncher.State       = 0;
-    MasterPuncher.Tick        = 0;
-    MasterPuncher.TimePunch   = 30;
-    MasterPuncher.TimeGap1    = 15;
-    MasterPuncher.TimeAdvance = 60;
-    MasterPuncher.TimeGap2    = 5;
+    Puncher.State       = 0;
+    Puncher.Tick        = 0;
+    Puncher.TimePunch   = 30;
+    Puncher.TimeGap1    = 15;
+    Puncher.TimeAdvance = 60;
+    Puncher.TimeGap2    = 5;
     
-    MasterPuncher.Output      = Transcoder_new(Puncher_sizeOutput);
-    MasterPuncher.Output->Configs = nMode;
+    Puncher.Output      = Transcoder_new(Puncher_sizeOutput);
+    
+    System.Buffers[2]   = Puncher.Output->Ring;
+    
+    Puncher.Output->Configs = nMode;
     
     PUNCHER_TRIS = 0; // All outputs
     PUNCHER_LAT  = 0;
     
-    MasterPuncher.Enabled      = bEnabled;
+    Puncher.Enabled      = bEnabled;
 }
 
 inline void Puncher_tick(void){
-    if (MasterPuncher.Tick){
-        MasterPuncher.Tick--;
+    if (Puncher.Tick){
+        Puncher.Tick--;
     }
 }
 
@@ -43,26 +46,26 @@ void Puncher_service(void){
     unsigned char cOut;
     unsigned char bAdv;
     
-    if (MasterPuncher.Tick){
+    if (Puncher.Tick){
         return;
     }
     
     // 0 - Idle
-    if (MasterPuncher.State == 0){
-        if (ring_is_empty(MasterPuncher.Output->Ring)){
+    if (Puncher.State == 0){
+        if (ring_is_empty(Puncher.Output->Ring)){
             return;
         }
-        MasterPuncher.State = 1;
+        Puncher.State = 1;
     }
     
     PUNCHER_TRIS = 0;
     
     // 1 - Punch
-    if (MasterPuncher.State == 1){
-         if (!Transcoder_read(MasterPuncher.Output, &cOut)){
+    if (Puncher.State == 1){
+         if (!Transcoder_read(Puncher.Output, &cOut)){
              // Nothing to punch, strange, this should not have happened!!
              // Back to idle
-             MasterPuncher.State = 0;
+             Puncher.State = 0;
              return;
          }
 
@@ -73,30 +76,30 @@ void Puncher_service(void){
         //byte2binstr(sStr1, PUNCHER_LAT);
         //printf("> %s\r\n", sStr1);
         
-        MasterPuncher.State++;
-        MasterPuncher.Tick  = MasterPuncher.TimePunch;
+        Puncher.State++;
+        Puncher.Tick  = Puncher.TimePunch;
     }
     // 2 - Gap 1
-    else if (MasterPuncher.State == 2){
+    else if (Puncher.State == 2){
         PUNCHER_LAT  = 0;
-        MasterPuncher.State++;
-        MasterPuncher.Tick  = MasterPuncher.TimeGap1;
+        Puncher.State++;
+        Puncher.Tick  = Puncher.TimeGap1;
     }
     // 3 - Advance
-    else if (MasterPuncher.State == 3){
+    else if (Puncher.State == 3){
         PUNCHER_LAT  = PUNCHER_BIT_ADVANCE;
-        MasterPuncher.State++;
-        MasterPuncher.Tick  = MasterPuncher.TimeAdvance;
+        Puncher.State++;
+        Puncher.Tick  = Puncher.TimeAdvance;
     }
     // 4 - Gap 2
-    else if (MasterPuncher.State == 4){
+    else if (Puncher.State == 4){
         PUNCHER_LAT  = 0;
-        MasterPuncher.State++;
-        MasterPuncher.Tick  = MasterPuncher.TimeGap2;
+        Puncher.State++;
+        Puncher.Tick  = Puncher.TimeGap2;
     }
     // 5 - Done
-    else if (MasterPuncher.State == 5){
-        MasterPuncher.State = 0;
+    else if (Puncher.State == 5){
+        Puncher.State = 0;
     }
     // Debug
     //byte2binstr(sStr1, PUNCHER_LAT);
@@ -106,29 +109,30 @@ void Puncher_service(void){
 
 
 
-inline unsigned char Puncher_write(unsigned char *pStr){
-    if (!MasterPuncher.Enabled){
+inline unsigned char Puncher_write(const unsigned char *pStr){
+    if (!Puncher.Enabled){
         // Error: puncher disabled
         return 0;
     }
-    return ring_append(MasterPuncher.Output->Ring, pStr);
+    
+    return ring_appendEscaped(Puncher.Output->Ring, pStr);
 }
 
 
-inline unsigned char Puncher_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
+inline unsigned char Puncher_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "cfg punch")){
-        Puncher_cmd_cfg(pBuffer, pArgs);
+        Puncher_cmd_cfg(idBuffer, pArgs);
         return 1;
     }
     if (strequal(pCommand, "punch")){
-        Puncher_cmd(pBuffer, pArgs);
+        Puncher_cmd(idBuffer, pArgs);
         return 1;
     }
     return 0;
 }
 
 
-void Puncher_cmd_cfg(Ring_t * pBuffer, unsigned char *pArgs){
+void Puncher_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -143,19 +147,19 @@ void Puncher_cmd_cfg(Ring_t * pBuffer, unsigned char *pArgs){
     pArg1 = strtok(pArgs, txtWhitespace);
     
     if (strequal(pArg1, "mode")){
-        pVal = &MasterPuncher.Output->Configs;
+        pVal = &Puncher.Output->Configs;
     }
     else if (strequal(pArg1, "time.punch")){
-        pVal = &MasterPuncher.TimePunch;
+        pVal = &Puncher.TimePunch;
     }
     else if (strequal(pArg1, "time.gap1")){
-        pVal = &MasterPuncher.TimeGap1;
+        pVal = &Puncher.TimeGap1;
     }
     else if (strequal(pArg1, "time.gap2")){
-        pVal = &MasterPuncher.TimeGap2;
+        pVal = &Puncher.TimeGap2;
     }
     else if (strequal(pArg1, "time.advance")){
-        pVal = &MasterPuncher.TimeAdvance;
+        pVal = &Puncher.TimeAdvance;
     }
 
     if (pVal){
@@ -170,14 +174,11 @@ void Puncher_cmd_cfg(Ring_t * pBuffer, unsigned char *pArgs){
         strcpy(sReply, txtErrorInvalidArgument);
     }
     
-    printReply(pBuffer, bOK, "PUNCH", sReply);
+    printReply(idBuffer, bOK, "PUNCH", sReply);
 }
 
-void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
+void Puncher_cmd(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
-    unsigned char *pArg1 = NULL;
-    unsigned char *pArg2 = NULL;
-    unsigned char *pVal  = NULL;
     unsigned char n = 0;
     unsigned char m = 0;
 
@@ -188,15 +189,15 @@ void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
         bOK = false;
         strcpy(sReply, txtErrorMissingArgument);
     }
-    else if (n > ring_available(MasterPuncher.Output->Ring)){
+    else if (n > ring_available(Puncher.Output->Ring)){
         bOK = false;
         strcpy(sReply, txtErrorTooBig);
     }
     else{
-        MasterPuncher.Enabled = 1;
-        m = Puncher_write(pArg1 + 5);
+        Puncher.Enabled = 1;
+        m = Puncher_write(pArgs);
         if (m){
-            sprintf(sReply, "%u", n);
+            sprintf(sReply, "%u", m);
         }
         else{
             bOK = false;
@@ -204,5 +205,5 @@ void Puncher_cmd(Ring_t * pBuffer, unsigned char *pArgs){
         }
     }
     
-    printReply(pBuffer, bOK, "PUNCH", sReply);
+    printReply(idBuffer, bOK, "PUNCH", sReply);
 }

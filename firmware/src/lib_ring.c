@@ -5,21 +5,25 @@
 
 
 Ring_t * ring_new(const unsigned char nSize){
-    //unsigned char buffer[nSize];
-    unsigned char n = 0;
-    
-    //Ring_t Ring = {0,0,0,0};
     Ring_t *pRing = (Ring_t *) Heap_alloc(sizeof(Ring_t));
+    
+    if (!pRing){
+        return NULL;
+    }
+    
     // For security to avoid buffer overruns a 0 is at the end of the buffer
-    pRing->Size   = nSize - 1; 
-    pRing->Head   = pRing->Size - 1;
-    pRing->Tail   = pRing->Head;
     pRing->Buffer = Heap_alloc(nSize);
     if (!pRing->Buffer){
         pRing->Size = 0;
+        pRing->Head   = 0;
+        pRing->Tail   = 0;
     }
     else{
-        n = nSize;
+        pRing->Size   = nSize - 1; 
+        pRing->Head   = pRing->Size - 1;
+        pRing->Tail   = pRing->Head;
+
+        unsigned char n = nSize;
         while (n){
             pRing->Buffer[n] = 0;
             n--;
@@ -40,6 +44,9 @@ unsigned char ring_strlen(Ring_t *Ring){
 }
 
 inline unsigned char ring_available(Ring_t *Ring){
+    if (!Ring){
+        return 0;
+    }
 	if (Ring->Tail >= Ring->Head){
         return Ring->Size - Ring->Tail + Ring->Head;
     }
@@ -263,6 +270,42 @@ unsigned char ring_append(Ring_t *Ring, const unsigned char *pStr){
 }
 
 
+unsigned char ring_appendEscaped(Ring_t *Ring, const unsigned char *pStr){
+    unsigned char n    = 0;
+    unsigned char nChr = 0;
+    unsigned char nEsc = 0;
+    unsigned char nHigh= 0;
+    
+    while(nChr = *pStr){
+        if (nEsc == 1){
+            if (nChr == '\\'){ nChr = '\\'; nEsc = 0;}
+            if (nChr == 'n') { nChr = '\n'; nEsc = 0;}
+            if (nChr == 'r') { nChr = '\r'; nEsc = 0;}
+            if (nChr == '0') { nChr = '\0'; nEsc = 0;}
+            if (nChr == 'x') { nEsc++; }
+        }
+        else if (nEsc == 2){
+            nHigh = nChr;
+            nEsc++;
+        }
+        else if (nEsc == 3){
+            nChr = (hex2byte(nHigh) << 4) | hex2byte(nChr);
+            nEsc = 0;
+        }
+        else if (nChr == '\\'){
+            nEsc = 1;
+        }
+        if (!nEsc){
+            if (!ring_write(Ring, nChr)){
+                return n;
+            }
+            n++;
+        };
+        pStr++;
+    }
+    return n;
+}
+
 unsigned char ring_findChr(Ring_t *Ring, unsigned char cSearch, unsigned char bHaltNull){
 	unsigned char n = 0;
 	unsigned char nChar = 0;
@@ -293,7 +336,12 @@ unsigned char ring_findChr(Ring_t *Ring, unsigned char cSearch, unsigned char bH
 void ring_dump(Ring_t *Ring, unsigned char * pStr){
     unsigned char n;
     unsigned char c;
-    unsigned char sTmp[6] = "\0";
+    unsigned char sTmp[6] = "";
+    
+    if (!Ring){
+        strcpy(pStr, "NULL Ring\r\n");
+        return;
+    }
     
     *pStr = 0;
     

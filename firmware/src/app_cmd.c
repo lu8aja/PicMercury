@@ -11,34 +11,50 @@
 
 #include "app_cmd.h"
 
-#if defined(LIB_KEYS)
+#include "service_i2c.h"
+
+#ifdef LIB_SOFTSERIAL
+    #include "service_softserial.h"
+#endif
+#ifdef LIB_PUNCHER
+    #include "service_puncher.h"
+#endif
+#ifdef LIB_KEYS
     #include "service_keys.h"
 #endif
-#if defined(LIB_MUSIC)
+#ifdef LIB_MUSIC
     #include "service_music.h"
 #endif
 
-inline unsigned char Cmd_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs){
+inline unsigned char Cmd_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs){
 
     // PING
     if (strequal(pCommand, "ping")){
-        APP_CMD_ping(pBuffer, pArgs);
+        APP_CMD_ping(idBuffer, pArgs);
     }
+    // STATUS
+	else if (strequal(pCommand, "status")){
+        APP_CMD_status(idBuffer, pArgs);
+	}
+    // RESET
+	else if (strequal(pCommand, "reset")){
+        APP_CMD_reset(idBuffer, pArgs);
+	}
     // UPTIME
 	else if (strequal(pCommand, "uptime")){
-        APP_CMD_uptime(pBuffer, pArgs);
+        APP_CMD_uptime(idBuffer, pArgs);
 	}
     // DEBUG
     else if (strequal(pCommand, "debug")){
-        APP_CMD_debug(pBuffer, pArgs);
+        APP_CMD_debug(idBuffer, pArgs);
     }
     // READ
     else if (strequal(pCommand, "read") || strequal(pCommand, "r")){
-        APP_CMD_read(pBuffer, pArgs);
+        APP_CMD_read(idBuffer, pArgs);
     }
     // WRITE
     else if (strequal(pCommand, "write") || strequal(pCommand, "w")){
-        APP_CMD_write(pBuffer, pArgs);
+        APP_CMD_write(idBuffer, pArgs);
     }
     else{
         return 0;
@@ -49,30 +65,54 @@ inline unsigned char Cmd_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, uns
 
     
 /** FUNCTIONS *******************************************************/
-void APP_CMD_ping(Ring_t *pBuffer, unsigned char *pArgs){
-    printReply(pBuffer, 1, "PONG", pArgs);
+void APP_CMD_ping(unsigned char idBuffer, unsigned char *pArgs){
+    printReply(idBuffer, 1, "PONG", pArgs);
 }
 
-void APP_CMD_version(Ring_t *pBuffer, unsigned char *pArgs){
-    printReply(pBuffer, 1, "VERSION", txtVersion);
+void APP_CMD_version(unsigned char idBuffer, unsigned char *pArgs){
+    printReply(idBuffer, 1, "VERSION", txtVersion);
 }
-        
-void APP_CMD_uptime(Ring_t *pBuffer, unsigned char *pArgs){
+
+
+void APP_CMD_reset(unsigned char idBuffer, unsigned char *pArgs){
+    System.Clock.NotifyCounter = pArgs[0] ? atoi(pArgs) : 5000;
+    System.Config.Reset        = 1;
+    printReply(idBuffer, 1, "RESET", txtOk);
+}
+
+
+void APP_CMD_status(unsigned char idBuffer, unsigned char *pArgs){
+    byte2binstr(sStr1, System.Errors);
+    
+    printf("Status=%s\r\n", sStr1);
+    
+    printf("I2C In=%x\r\nI2C Out=%x\r\n", I2C.Input->Buffer, I2C.Output->Buffer);
+    #ifdef LIB_SOFTSERIAL
+        printf("Puncher=%x\r\n", sStr1, Puncher.Output->Ring->Buffer);
+    #endif
+    #ifdef LIB_PUNCHER
+        printf("Serial In=%x\r\nSerial Out=%x\r\n", SoftSerial.Input->Ring->Buffer, SoftSerial.Output->Ring->Buffer);
+    #endif
+    
+    printReply(idBuffer, 1, "STATUS", 0);
+}
+
+void APP_CMD_uptime(unsigned char idBuffer, unsigned char *pArgs){
     Clock_getStr(sStr1, 0);
-    printReply(pBuffer, 1, "UPTIME", sStr1);
+    printReply(idBuffer, 1, "UPTIME", sStr1);
 }
 
-void APP_CMD_debug(Ring_t *pBuffer, unsigned char *pArgs){
+void APP_CMD_debug(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     sReply[0] = 0x00;
     
     str2lower(pArgs);   
         
     if (strequal(pArgs, "on") || strequal(pArgs, "1")){
-        MasterDebug = 1;
+        System.Config.Debug = 1;
     }
     else if (strequal(pArgs, "off") || strequal(pArgs, "0")){
-        MasterDebug = 0;
+        System.Config.Debug = 0;
     }
     else if (strlen(pArgs)){
         bOK = false;
@@ -80,15 +120,15 @@ void APP_CMD_debug(Ring_t *pBuffer, unsigned char *pArgs){
         strcat(sReply, ". Now: ");
     }
 
-    strcat(sReply, MasterDebug > 0 ? txtOn : txtOff);
+    strcat(sReply, System.Config.Debug > 0 ? txtOn : txtOff);
     //strcat(sReply, " ");
-    //strcat(sReply, MasterDebugMsg);
+    //strcat(sReply, System.Config.DebugMsg);
 
-    printReply(pBuffer, bOK, "DEBUG", sReply);
+    printReply(idBuffer, bOK, "DEBUG", sReply);
 }
 
 
-void APP_CMD_read(Ring_t *pBuffer, unsigned char *pArgs){
+void APP_CMD_read(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char nBit = 255; // Double purpose, bit number for single pin or TRIS value for whole port
     unsigned char nMax = '7';
@@ -148,10 +188,10 @@ void APP_CMD_read(Ring_t *pBuffer, unsigned char *pArgs){
         }
     }
     
-    printReply(pBuffer, bOK, "READ", sReply);
+    printReply(idBuffer, bOK, "READ", sReply);
 }
 
-void APP_CMD_write(Ring_t *pBuffer, unsigned char *pArgs){
+void APP_CMD_write(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -226,12 +266,12 @@ void APP_CMD_write(Ring_t *pBuffer, unsigned char *pArgs){
         }
     }
     
-    printReply(pBuffer, bOK, "WRITE", sReply);
+    printReply(idBuffer, bOK, "WRITE", sReply);
 }
 
 
-void APP_CMD_var(Ring_t *pBuffer, unsigned char *pArgs){}
-void APP_CMD_var_dummy(Ring_t *pBuffer, unsigned char *pArgs){
+void APP_CMD_var(unsigned char idBuffer, unsigned char *pArgs){}
+void APP_CMD_var_dummy(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -260,21 +300,21 @@ void APP_CMD_var_dummy(Ring_t *pBuffer, unsigned char *pArgs){
         switch (num){
                  /*** MASTER DEBUG ***/
             case 0: 
-                pChar = &MasterDebug; break;
+                pChar = &System.Config.Debug; break;
             case 1: 
                 /*** MASTER CLOCK */
-                var    = MasterClockTickCount; break;
+                var    = System_ClockTickCount; break;
             case 2: 
-                pChar  = &MasterClock.Tick; break;
+                pChar  = &System.Clock.Tick; break;
             case 3: 
-                pLong  = &MasterClock.MS; break;
+                pLong  = &System.Clock.MS; break;
                 /*** MASTER NOTIFY ***/
             case 10: 
-                pInt   = &MasterClock.NotifyCounter; break;
+                pInt   = &System.Clock.NotifyCounter; break;
             case 11: 
-                pInt   = &MasterClock.NotifyTime; break;
+                pInt   = &System.Clock.NotifyTime; break;
             case 12: 
-                pLong  = &MasterClock.NotifyNow; break;
+                pLong  = &System.Clock.NotifyNow; break;
 
         #if defined(LIB_LEDS)
                 /*** MASTER LEDS ***/
@@ -469,7 +509,7 @@ void APP_CMD_var_dummy(Ring_t *pBuffer, unsigned char *pArgs){
     printReply(0, bOK, "VAR", sReply);
 }
 
-void APP_CMD_var_ee(Ring_t *pBuffer, unsigned char *pArgs){
+void APP_CMD_var_ee(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     unsigned char *pArg1 = NULL;
     unsigned char *pArg2 = NULL;
@@ -505,7 +545,7 @@ void APP_CMD_var_ee(Ring_t *pBuffer, unsigned char *pArgs){
                 
  
 
-void APP_CMD_mem(Ring_t *pBuffer, unsigned char *pArgs){
+void APP_CMD_mem(unsigned char idBuffer, unsigned char *pArgs){
     /*
     bool bOK = true;
     unsigned char *pArg1 = NULL;
@@ -555,7 +595,7 @@ void APP_CMD_dumptest(unsigned char *pArgs){
 }
 */
 
-void APP_CMD_dump(Ring_t *pBuffer, unsigned char *pArgs){
+void APP_CMD_dump(unsigned char idBuffer, unsigned char *pArgs){
     /*
     bool bOK = true;
     unsigned char *pChar = 0x0f60;

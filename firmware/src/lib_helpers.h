@@ -24,7 +24,7 @@
 /*** PUBLIC PROTOTYPES ***/
 
 // STDIO related
-void          printReply(Ring_t * pBuffer, const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply);
+void          printReply(unsigned char idBuffer, const unsigned char nType, const unsigned char *pCmd, const unsigned char *pReply);
 void          putch(const unsigned char byte);
 void          print(const unsigned char *pStr);
 

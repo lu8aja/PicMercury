@@ -65,6 +65,9 @@ unsigned char ring_strtok(Ring_t *Ring, unsigned char *pStr, unsigned char nMaxL
 // Writes a whole null terminated string into the buffer
 unsigned char ring_append(Ring_t *Ring, const unsigned char *pStr);
 
+// Writes a whole null terminated string into the buffer, it decodes common escape sequences
+unsigned char ring_appendEscaped(Ring_t *Ring, const unsigned char *pStr);
+
 // Search for a given character inside the ring buffer, results are 0 based
 unsigned char ring_findChr(Ring_t *Ring, unsigned char cSearch, unsigned char bHaltNull);
 

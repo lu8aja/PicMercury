@@ -11,7 +11,7 @@
 #include "lib_transcoder.h"
 #include "app_main.h"
 
-#define SeoftSerial_Debug           1
+#define SeoftSerial_Debug           0
 
 
 // CONSTANTS
@@ -129,7 +129,7 @@ inline void          SoftSerial_service_tx(SoftSerial_t *pSerial);
 inline unsigned char SoftSerial_read(SoftSerial_t *pSerial, unsigned char *pStr, unsigned char nMaxLen);
 inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr);
 
-inline unsigned char SoftSerial_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs);
+inline unsigned char SoftSerial_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs);
 
-void                 SoftSerial_cmd_cfg(Ring_t * pBuffer, unsigned char *pArgs);
-void                 SoftSerial_cmd(Ring_t * pBuffer, unsigned char *pArgs);
+void                 SoftSerial_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs);
+void                 SoftSerial_cmd(unsigned char idBuffer, unsigned char *pArgs);

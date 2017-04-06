@@ -24,6 +24,7 @@ const char txtNum[]        = "0123456789";
 //const char txtAlphaNum[]   = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const char txtWhitespace[] = " \t\r\n";
 
+const char txtOk[]        = "OK";
 const char txtOn[]        = "On";
 const char txtOff[]       = "Off";
 const char txtSpc[]       = " ";
@@ -34,39 +35,38 @@ const char txtCmdConfig[] = "cfg";
 const char txtErrorMissingCommand[]  = "Missing command";
 const char txtErrorUnknownCommand[]  = "Unknown command";
 const char txtErrorUnknownArgument[] = "Unknown argument";
-const char txtErrorUnknownPin[]      = "Unknown pin";
 const char txtErrorInvalidArgument[] = "Invalid argument";
 const char txtErrorMissingArgument[] = "Missing argument";
-const char txtErrorTooBig[]          = "Argument too big";
+const char txtErrorTooBig[]          = "Too big";
+const char txtErrorUnknownPin[]      = "Unknown pin";
 const char txtErrorBusy[]            = "Busy";
 const char txtErrorCorrupt[]         = "Corrupt"; 
 
 
 /** VARIABLES ******************************************************/
-/*** MASTER DEBUG ***/
-unsigned char MasterDebug         = 0;     // 
-//unsigned char MasterDebugMsg[16]  = "";
 
-Clock_t MasterClock;
-
+System_t System;
 
 /*** Buffers ***/
-unsigned char  bufChunk[sizeChunk];
-unsigned char  bufUsbOutput[sizeOutput + 1];
-unsigned char  bufUsbCommand[sizeCommand]   = "";
-unsigned char  bufTmp[sizeOutUsb + 1];
+unsigned char  bufChunk[sizeChunk]          = "";
 
-unsigned char  bufCommand[sizeCommand]   = "";
-unsigned char  sReply[sizeReply];
-unsigned char  sStr1[sizeStr];
-unsigned char  sStr2[sizeStr];
-unsigned char  sStr3[sizeStr];
-unsigned char  sStr4[sizeStr];
-unsigned char  sStr5[sizeStr * 4];
+unsigned char  bufUsbOutput[sizeOutput + 1] = "";
+unsigned char  bufUsbCommand[sizeCommand]   = "";
+unsigned char  bufUsbTmp[sizeOutUsb + 1]    = "";
+
+unsigned char  bufCommand[sizeCommand]      = "";
+
+unsigned char  sReply[sizeReply]  = "";
+
+unsigned char  sStr1[sizeStr]     = "";
+unsigned char  sStr2[sizeStr]     = "";
+unsigned char  sStr3[sizeStr]     = "";
+unsigned char  sStr4[sizeStr]     = "";
+unsigned char  sStr5[sizeStr * 4] = "";
 
 /*** Cursors ***/
 unsigned int   posOutput       = 0;
-unsigned char  posCommand      = 0;
+unsigned char  posUsbCommand   = 0;
 
 
 

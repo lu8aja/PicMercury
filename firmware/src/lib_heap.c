@@ -10,7 +10,7 @@
 #endif
 
 unsigned char Heap[HEAP_Size];
-unsigned char *Heap_Next;
+unsigned char *Heap_Next = 0;
 
 unsigned char *Heap_alloc(unsigned char len){
     unsigned char *ptr;
@@ -22,6 +22,7 @@ unsigned char *Heap_alloc(unsigned char len){
     if (Heap_Next >= &Heap + HEAP_Size){
         // Forget it! We don't have enough space
         Heap_Next = ptr;
+        System.Error.Heap = 1;
         return 0;
     }
     return ptr;    

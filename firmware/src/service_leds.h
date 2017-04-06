@@ -41,8 +41,8 @@ inline void Leds_tick(void);
 inline void Leds_service(void);
 void        Leds_updateLeds(void);
 void        Leds_updateUsb(void);
-inline unsigned char Leds_checkCmd(Ring_t * pBuffer, unsigned char *pCommand, unsigned char *pArgs);
-void        Leds_cmd(Ring_t * pBuffer, unsigned char *pArgs);
+inline unsigned char Leds_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs);
+void        Leds_cmd(unsigned char idBuffer, unsigned char *pArgs);
 
 
 

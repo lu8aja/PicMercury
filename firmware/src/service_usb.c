@@ -1,7 +1,7 @@
 
 #include "service_usb.h"
 
-extern void APP_executeCommand(Ring_t *pBuffer, unsigned char *pLine);
+extern void APP_executeCommand(unsigned char idBuffer, unsigned char *pLine);
 
 
 
@@ -29,18 +29,18 @@ void USB_input(void){
         if (nBytes > 0) {
             /* For every byte that was read... */
             if (bufChunk[0] == 0x0D || bufChunk[0] == 0x0A){
-                if (posCommand){
-                    bufUsbCommand[posCommand] = 0x00;
+                if (posUsbCommand){
+                    bufUsbCommand[posUsbCommand] = 0x00;
                     APP_executeCommand(0, bufUsbCommand);
-                    posCommand = 0;
+                    posUsbCommand = 0;
                     bufUsbCommand[0] = 0x00;
                     break;
                 }
             }
             else{
-                bufUsbCommand[posCommand] = bufChunk[0];
-                posCommand++;
-                bufUsbCommand[posCommand] = 0x00;
+                bufUsbCommand[posUsbCommand] = bufChunk[0];
+                posUsbCommand++;
+                bufUsbCommand[posUsbCommand] = 0x00;
             }
         }
     }
@@ -55,8 +55,8 @@ void USB_output(void){
 
     if(posOutput > 0 && USBUSARTIsTxTrfReady()){
         len = posOutput >= sizeOutUsb ? sizeOutUsb : posOutput;
-        strncpy(bufTmp, bufUsbOutput, len);
-        putUSBUSART(bufTmp, len);
+        strncpy(bufUsbTmp, bufUsbOutput, len);
+        putUSBUSART(bufUsbTmp, len);
         strcpy(bufUsbOutput, &bufUsbOutput[len]);
         posOutput = posOutput - len;
         bufUsbOutput[posOutput] = 0x00;
