@@ -1,0 +1,39 @@
+#include <xc.h>
+
+#include "app_globals.h"
+
+button_map_t MasterButtonsMap[] = {
+    {3, 0, 4, 0}, // C0/D0 CLR_TAPE
+    {3, 0, 4, 1}, // C0/D1 INITIAL_TRANSFER
+    {3, 1, 4, 1}  // C1/D1 PREPULSE
+};
+
+button_status_t MasterButtons[] = {
+    {0, 0}, // C0/D0 CLR_TAPE
+    {0, 0}, // C0/D1 INITIAL_TRANSFER
+    {0, 0}  // C1/D1 PREPULSE
+};
+
+// First nibble goes to RB5~2 as 1, second nibble goes to RA3~0
+/* No longer used
+#define MasterLedMapLen 16
+const unsigned char MasterLedMap[] = {
+                // n name B5432 A3210,
+    0b11101110, // 0 B2A0 0001   0001 LED_FUSE_ALARM
+    0b11101101, // 1 B2A1 0001   0010 LED_MAG
+    0b11101011, // 2 B2A2 0001   0100 LED_SAC_POSITIVE
+    0b11100111, // 3 B2A3 0001   1000 LED_SAC_NOTZERO
+    0b11011110, // 4 B3A0 0010   0001 LED_ACC_MULT
+    0b11011101, // 5 B3A1 0010   0010 LED_MAG_PARITY
+    0b11011011, // 6 B3A2 0010   0100 LED_BTEST_POSITIVE
+    0b11010111, // 7 B3A3 0010   1000 LED_BTEST_NOTZERO
+    0b11111111, // 8 B4A0 0100   0001 DOES NOT EXIST IN HARDWARE
+    0b10111101, // 9 B4A1 0100   0010 LED_PARITY_STOP
+    0b10111011, // A B4A2 0100   0100 LED_SHIFT31
+    0b10110111, // B B4A3 0100   1000 LED_STOP_FLIPFLOP
+    0b01111110, // C B5A0 1000   0001 LED_AUTO
+    0b01111101, // D B5A1 1000   0010 LED_CONTINUOUS
+    0b01111011, // E B5A2 1000   0100 LED_INHIBIT_PARITY
+    0b01110111, // F B5A3 1000   1000 LED_WRITE_CURRENT 
+};
+*/

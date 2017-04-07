@@ -1,66 +1,44 @@
-/********************************************************************
- Software License Agreement:
-
- The software supplied herewith by Microchip Technology Incorporated
- (the "Company") for its PIC(R) Microcontroller is intended and
- supplied to you, the Company's customer, for use solely and
- exclusively on Microchip PIC Microcontroller products. The
- software is owned by the Company and/or its supplier, and is
- protected under applicable copyright laws. All rights are reserved.
- Any use in violation of the foregoing restrictions may subject the
- user to criminal sanctions under applicable laws, as well as to
- civil liability for the breach of the terms and conditions of this
- license.
-
- THIS SOFTWARE IS PROVIDED IN AN "AS IS" CONDITION. NO WARRANTIES,
- WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING, BUT NOT LIMITED
- TO, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- PARTICULAR PURPOSE APPLY TO THIS SOFTWARE. THE COMPANY SHALL NOT,
- IN ANY CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL OR
- CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
- *******************************************************************/
 
 /** INCLUDES *******************************************************/
 #include "system.h"
-#include "system_config.h"
+#include "usb/usb.h"
+#include "usb/usb_device.h"
+#include "usb/usb_device_cdc.h"
 
 #include "app_main.h"
+#include "usb_config.h"
+#include "service_usb.h"
 
-#include "usb.h"
-#include "usb_device.h"
-#include "usb_device_cdc.h"
 
 /********************************************************************
  * Function:        void main(void)
- *
- * PreCondition:    None
- *
- * Input:           None
- *
- * Output:          None
- *
- * Side Effects:    None
- *
  * Overview:        Main program entry point.
- *
  * Note:            None
  *******************************************************************/
 MAIN_RETURN main(void){
-    SYSTEM_Initialize(SYSTEM_STATE_USB_START);
+    //SYSTEM_Initialize(SYSTEM_STATE_USB_START);
+
     APP_init();
+    
     USBDeviceInit();
+    
     USBDeviceAttach();
     
     while(1){
-        SYSTEM_Tasks();
+        //SYSTEM_Tasks();
 
+        
         //Application specific tasks
         APP_main();
+        
+        
+        continue;
+        
 
         /* If the USB device isn't configured yet, we can't really do anything
          * else since we don't have a host to talk to.  So jump back to the
          * top of the while loop. */
-        if( USBGetDeviceState() < CONFIGURED_STATE ){
+        if( USB_getDeviceState() < CONFIGURED_STATE ){
             /* Jump back to the top of the while loop. */
             continue;
         }
@@ -69,7 +47,7 @@ MAIN_RETURN main(void){
          * issue a remote wakeup.  In either case, we shouldn't process any
          * keyboard commands since we aren't currently communicating to the host
          * thus just continue back to the start of the while loop. */
-        if( USBIsDeviceSuspended()== true ){
+        if( USB_isDeviceSuspended()){
             /* Jump back to the top of the while loop. */
             continue;
         }
@@ -80,28 +58,18 @@ MAIN_RETURN main(void){
 /*******************************************************************
  * Function:        bool USER_USB_CALLBACK_EVENT_HANDLER(
  *                        USB_EVENT event, void *pdata, uint16_t size)
- *
- * PreCondition:    None
- *
  * Input:           USB_EVENT event - the type of event
  *                  void *pdata - pointer to the event data
  *                  uint16_t size - size of the event data
- *
  * Output:          None
- *
- * Side Effects:    None
- *
  * Overview:        This function is called from the USB stack to
  *                  notify a user application that a USB event
  *                  occured.  This callback is in interrupt context
  *                  when the USB_INTERRUPT option is selected.
- *
- * Note:            None
  *******************************************************************/
 bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size)
 {
-    switch( (int) event )
-    {
+    switch( (int) event ){
         case EVENT_TRANSFER:
             break;
 
@@ -138,7 +106,7 @@ bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size
         case EVENT_CONFIGURED:
             /* When the device is configured, we can (re)initialize the 
              * demo code. */
-            APP_usbConfigured();
+            USB_configured();
             break;
 
         case EVENT_SET_DESCRIPTOR:
@@ -161,8 +129,3 @@ bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size
     }
     return true;
 }
-
-/*******************************************************************************
- End of File
-*/
-
