@@ -21,11 +21,11 @@
 #define TRANSCODER_ITA_CR         0b00001000 //
 #define TRANSCODER_ITA_LF         0b00000010 //
 #define TRANSCODER_ITA_UNKNOWN    0b00000100 //
-#define TRANSCODER_ASCII_UNKNOWN  0xff //
+#define TRANSCODER_ASCII_UNKNOWN  0x1A       // Substitute character
 
-#define TRANSCODER_CODE_ITA2     0
-#define TRANSCODER_CODE_ITA2_ES  1
-#define TRANSCODER_CODE_USTTY    2
+#define TRANSCODER_CODE_ITA2      0
+#define TRANSCODER_CODE_ITA2_ES   1
+#define TRANSCODER_CODE_USTTY     2
 
 #ifndef CFG_TRANSCODER_CODE
     #define CFG_TRANSCODER_CODE   TRANSCODER_CODE_ITA2
@@ -45,16 +45,16 @@ typedef struct {
             unsigned Shift:1;         // [80] Current Shift Status 0: LTRS / 1: FIGS
         };
     };
-    unsigned char Char;
-    Ring_t *Ring;
-    unsigned char *LinkedConfigs;
+    unsigned char Char;               // Last Character being processed
+    Ring_t *Ring;                     // Ring buffer
+    unsigned char *LinkedConfigs;     // Configs of the other paired transcoder
 } Transcoder_t;
 
 
 
 Transcoder_t * Transcoder_new(const unsigned char nSize);
-unsigned char Transcoder_read(Transcoder_t *pTranscoder, unsigned char *pChar);
-unsigned char Transcoder_write(Transcoder_t *pTranscoder, unsigned char cIn, unsigned char bTest);
+unsigned char  Transcoder_read(Transcoder_t *pTranscoder, unsigned char *pChar);
+unsigned char  Transcoder_write(Transcoder_t *pTranscoder, unsigned char cIn, unsigned char bTest);
 
 extern const unsigned char txtTranscoderTable[];
 

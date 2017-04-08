@@ -24,6 +24,9 @@ void Puncher_init(unsigned char bEnabled, unsigned char nMode){
     Puncher.TimeGap2    = 5;
     
     Puncher.Output      = Transcoder_new(Puncher_sizeOutput);
+    if (!Puncher.Output){
+        System.Error.PuncherOutput = 1;
+    }
     
     System.Buffers[2]   = Puncher.Output->Ring;
     

@@ -1,18 +1,7 @@
 
 #include <xc.h>
 
-#define EEDATA_MIDI_ADDRESS    0
-#define EEDATA_MIDI_LENGTH     1
-#define EEDATA_MIDI_FIRST_NOTE 2
-
-#define EEDATA_MUSIC_COUNT     3
-#define EEDATA_MUSIC_0_ADDRESS 4
-#define EEDATA_MUSIC_0_LENGTH  5
-#define EEDATA_MUSIC_1_ADDRESS 6
-#define EEDATA_MUSIC_1_LENGTH  7
-
-#define EEDATA_PROGRAMS        8
-
+#include "data_eeprom.h"
 
 /*** EEPROM ***/
 __EEPROM_DATA(
@@ -87,6 +76,7 @@ __EEPROM_DATA(
 /* 90 */	__EEPROM_DATA(  0,  0,  0,  0,  0,  0,  0, 0 ); //
 /* 98 */	__EEPROM_DATA(  0,  0,  0,  0,  0,  0,  0, 0 ); //
 
+/* PROGRAMS CURRERNTLY DONT USE EEPROM*/
 /* A0 */	__EEPROM_DATA('l', ' ', 's', 't', 'e', 'p', 's', ' '); //0= led steps on
 /* A8 */	__EEPROM_DATA('1',  0 , 'd', ' ', '3', '8', '0', '0'); //   delay 38secs
 /* B0 */	__EEPROM_DATA('0',  0 , 't', ' ', '4', '4', '0', ' '); //   tone 440 2
@@ -99,4 +89,15 @@ __EEPROM_DATA(
 /* E0 */	__EEPROM_DATA(' ', ' ', ' ', ' ' , ' ', ' ', ' ', 0 ); //
 /* E8 */	__EEPROM_DATA(' ', ' ', ' ', ' ' , ' ', ' ' , 0 , 0 ); //
 /* F0 */	__EEPROM_DATA(' ', ' ', ' ', ' ' , ' ', ' ', ' ', 0 ); //
-/* F8 */	__EEPROM_DATA(' ', ' ', ' ', ' ' , ' ', ' ' , 0 , 0 ); //
+
+/* CFG: SERIAL */            
+/* F8 */	__EEPROM_DATA(
+    0b11011101, //Configs:  RxCommands,HalfDuplex,RxEcho,RxInvertCtrl,RxInvertData,TxInvertCtrl,TxInvertData,Enabled
+    0b00000010, //CfgDebug: RxEchoToUsb,Debug
+    0x25,       //TxPort,TxPin (B5)
+    0x24,       //RxPort,RxPin (B4)
+    0x51,       //DataBits,StopBits (5N1)
+    20,         //BitPeriod (20ms = 50Bd)
+    0,
+    0
+);

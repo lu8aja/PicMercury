@@ -88,27 +88,8 @@ inline void APP_init(void){
 
         
     #ifdef LIB_SOFTSERIAL
-        SoftSerial_init(&SoftSerial,
-            CFG_SOFTSERIAL_TX_Port,
-            CFG_SOFTSERIAL_TX_Pin,
-            CFG_SOFTSERIAL_TX_InvertData,
-            CFG_SOFTSERIAL_TX_InvertCtrl,
-            CFG_SOFTSERIAL_RX_Port,
-            CFG_SOFTSERIAL_RX_Pin,
-            CFG_SOFTSERIAL_RX_InvertData,
-            CFG_SOFTSERIAL_RX_InvertCtrl,
-            CFG_SOFTSERIAL_HalfDuplex
-        );
-        
-        SoftSerial_config(&SoftSerial,
-            0,
-            CFG_SOFTSERIAL_RX_DataBits,
-            CFG_SOFTSERIAL_RX_StopBits,
-            CFG_SOFTSERIAL_RX_Period,
-            CFG_SOFTSERIAL_Transcode
-        );
-        
-        SoftSerial_enable(&SoftSerial, 3);
+        SoftSerial_init(&SoftSerial);
+        SoftSerial_load(&SoftSerial);
     #endif
     
     #if defined(LIB_I2C)
@@ -330,11 +311,10 @@ void APP_executeCommand(unsigned char idBuffer, unsigned char *pLine){
     // Get the arguments
     str2lower(pCommand);    
 
-    pArgs = &pLine[strlen(pCommand) + 1];
+    pArgs = pCommand + strlen(pCommand) + 1;
 
     if (strequal(pCommand, txtCmdConfig)){
         // CONFIG special command
-
         // As it is a config, get the first argument to know what you are configuring
         pArg1 = strtok(pArgs, txtWhitespace);
         if (pArg1 == NULL){

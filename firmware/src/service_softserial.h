@@ -10,6 +10,7 @@
 #include "app_globals.h"
 #include "lib_transcoder.h"
 #include "app_main.h"
+#include "data_eeprom.h"
 
 #define SeoftSerial_Debug           0
 
@@ -45,13 +46,13 @@ typedef struct {
         unsigned char Status;               // Status Register
         struct {
             unsigned TxEnabled:1;           // [01] Tx Enabled
-            unsigned RxEnabled:1;           // [08] Rx Enabled
-            unsigned RxEndOfLine:1;         // [08] EndOfLine detected (used for command line detection)
-            unsigned RxCommandStart:1;      // [04] StartOfCommand detected (used for command line detection)
-            unsigned RxCommandRun:1;        // [04] StartOfCommand detected (used for command line detection)
+            unsigned RxEnabled:1;           // [02] Rx Enabled
+            unsigned RxEndOfLine:1;         // [04] EndOfLine detected (used for command line detection)
+            unsigned RxCommandStart:1;      // [08] StartOfCommand detected (used for command line detection)
+            unsigned RxCommandRun:1;        // [10] Command finished, it must run
             unsigned ErrorRxFraming:1;      // [20] Rx Framing Error (stop bit)
             unsigned ErrorRxOverflow:1;     // [40] Rx (Input) buffer overflow
-
+            unsigned :1;
         };
     };
     
@@ -73,18 +74,24 @@ typedef struct {
         unsigned char CfgDebug;             // Configs Debug
         struct {
             unsigned Debug:1;               // [01] Debug to console (Only available when compiled with the DEBUG flag)
-            unsigned RxEchoToUsb:1;         // [10] Echo the decoded output to USB directly
-            unsigned TxRepeated:1;          // [80] Repeated send, does not clear the out buffer and restarts the pointer (Only available when compiled with the DEBUG flag)
+            unsigned RxEchoToUsb:1;         // [02] Echo the decoded output to USB directly
+            unsigned TxRepeated:1;          // [04] Repeated send, does not clear the out buffer and restarts the pointer (Only available when compiled with the DEBUG flag)
+            unsigned :5;
         };
     };
     
-    unsigned char BitPeriod;   // Bit period in ms
-    unsigned char DataBits;    // Data Bits (1 .. 8)
-    unsigned char StopBits;    // Stop Bits (1 .. 8)
+    // Hardware Configs:
     unsigned char TxPort;      // TX Output Port (A..E or 1..5)
     unsigned char TxPin;       // TX Pin Bit (0..7)
     unsigned char RxPort;      // RX Input Port (A..E or 1..5)
     unsigned char RxPin;       // RX Pin Bit (0..7)
+    
+    // Connection Configs
+    unsigned char DataBits;    // Data Bits (1 .. 8)
+    unsigned char StopBits;    // Stop Bits (1 .. 8)
+    unsigned char BitPeriod;   // Bit period in ms
+    
+    // Runtime Values
     unsigned char RxColumn;    // RX Column, used for command decoding
 
     unsigned char TxState;     // State Machine: 0 = Off / 1 = 
@@ -107,19 +114,7 @@ typedef struct {
 extern SoftSerial_t SoftSerial;
 
 // PROTOTYPES
-void SoftSerial_init(
-    SoftSerial_t *pSerial,
-    unsigned char nTxPort,
-    unsigned char nTxPin,
-    unsigned char nTxInvertData,
-    unsigned char nTxInvertCtrl,
-    unsigned char nRxPort,
-    unsigned char nRxPin,
-    unsigned char nRxInvertData,
-    unsigned char nRxInvertCtrl,
-    unsigned char nDuplex
-);
-
+void                 SoftSerial_init(SoftSerial_t *pSerial);
 void                 SoftSerial_enable(SoftSerial_t *pSerial, unsigned char nEnabled);
 void                 SoftSerial_config(SoftSerial_t *pSerial, unsigned char nEnabled, unsigned char nDataBits, unsigned char nStopBits, unsigned char nBitPeriod, unsigned char nTranscode);
 inline void          SoftSerial_tick(SoftSerial_t *pSerial);
@@ -128,6 +123,8 @@ inline void          SoftSerial_service_rx(SoftSerial_t *pSerial);
 inline void          SoftSerial_service_tx(SoftSerial_t *pSerial);
 inline unsigned char SoftSerial_read(SoftSerial_t *pSerial, unsigned char *pStr, unsigned char nMaxLen);
 inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr);
+void                 SoftSerial_save(SoftSerial_t *pSerial);
+void                 SoftSerial_load(SoftSerial_t *pSerial);
 
 inline unsigned char SoftSerial_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs);
 

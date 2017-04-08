@@ -707,7 +707,7 @@ inline unsigned char I2C_checkCmd(unsigned char idBuffer, unsigned char *pComman
         I2C_cmd_cfg(idBuffer, pArgs);
         return 1;
     }
-    if (strequal(pCommand, "i2c")){
+    if (strequal(pCommand, "i2c") || strequal(pCommand, "send")){
         I2C_cmd(idBuffer, pArgs);
         return 1;
     }

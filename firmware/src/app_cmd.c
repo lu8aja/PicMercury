@@ -86,7 +86,7 @@ void APP_CMD_status(unsigned char idBuffer, unsigned char *pArgs){
     
     printf("Status=%s\r\n", sStr1);
     
-    printf("I2C In=%x\r\nI2C Out=%x\r\n", I2C.Input->Buffer, I2C.Output->Buffer);
+    printf("I2C In=%hx\r\nI2C Out=%hx\r\n", I2C.Input->Buffer, I2C.Output->Buffer);
     #ifdef LIB_SOFTSERIAL
         printf("Puncher=%x\r\n", sStr1, Puncher.Output->Ring->Buffer);
     #endif
@@ -254,10 +254,10 @@ void APP_CMD_write(unsigned char idBuffer, unsigned char *pArgs){
         else{
             // Whole port
             n = pArg1[0] - 'A';
-            pReg = TRISA + n;
+            pReg = &TRISA + n;
             *pReg = 0x00; // All outputs (this may interfere with USB, be careful)
             
-            pReg = LATA + n;
+            pReg = &LATA + n;
             *pReg = (unsigned char) atoi(pArg2);
             
             sReply[0] = pArg1[0];
@@ -490,11 +490,11 @@ void APP_CMD_var_dummy(unsigned char idBuffer, unsigned char *pArgs){
 
             if (pChar){
                 byte2binstr(sStr1, *pChar);
-                sprintf(sReply, "%u Char %3u %2x %s @ %04u", (unsigned int) num, *pChar, *pChar, sStr1, pChar);
+                sprintf(sReply, "%u Char %3hu %2hx %s @ %04u", num, *pChar, *pChar, sStr1, (unsigned int) pChar);
             }
             else if (pInt){
                 int2binstr(sStr1, *pInt);
-                sprintf(sReply, "%u Int %5u %4u %s @ %04u", (unsigned int) num, *pInt, *pInt, sStr1, pInt);
+                sprintf(sReply, "%u Int %5hu %4hx %s @ %04u", num, *pInt, *pInt, sStr1, (unsigned int) pInt);
             }
             else if (pLong){
                 any2binstr(sStr5, *pLong, 32);

@@ -9,40 +9,11 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-
-#include "service_usb.h"
-
-#include "app_globals.h"
-#include "app_main.h"
-#include "lib_helpers.h"
-#include "app_io.h"
+#include "service_monitor.h"
 
 
-typedef struct {
-    union {
-        unsigned char Configs;
-        struct {
-            unsigned char Enabled:1;
-            unsigned char A:1;
-            unsigned char B:1;
-            unsigned char C:1;
-            unsigned char D:1;
-            unsigned char E:1;
-            unsigned char :1;
-            unsigned char :1;
-        } Config;
-    };
-    unsigned char Port[5];
-    unsigned char Tris[5];
-} monitor_t;
-
-/*** Status of IO ***/
 
 monitor_t MasterMonitor;
-
-void Monitor_service(void);
-void Monitor_checkPins(unsigned char cPortName);
-void Monitor_cmd(unsigned char idBuffer, unsigned char *pArgs);
 
 
 
@@ -79,8 +50,8 @@ void Monitor_checkPins(unsigned char cPortName){
     }
     
     nPort--; // Pointers are 0-based
-    unsigned char *pPort = &PORTA + nPort;
-    unsigned char *pTris = &TRISA + nPort;
+    volatile unsigned char *pPort = &PORTA + nPort;
+    volatile unsigned char *pTris = &TRISA + nPort;
     unsigned cPort       = MasterMonitor.Port[nPort];
     unsigned cTris       = MasterMonitor.Tris[nPort];
     

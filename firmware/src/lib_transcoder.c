@@ -58,15 +58,13 @@ Transcoder_t * Transcoder_new(const unsigned char nSize){
     
     if (!pTranscoder){
         // Could not allocate the heap
-        System.Error.PuncherOutput = 1;
         return NULL;
     }
     
     pTranscoder->Ring = ring_new(nSize);
 
     if (!pTranscoder->Ring){
-        Heap_free(pTranscoder);
-        System.Error.PuncherOutput = 1;
+        Heap_free((unsigned char *) pTranscoder);
         // Could not allocate the ring buffer
         return NULL;
     }
@@ -225,16 +223,15 @@ unsigned char Transcoder_write(Transcoder_t *pTranscoder, unsigned char cIn, uns
     pTranscoder->Char = cOut;
     
     if (cOut || !pTranscoder->AvoidNull){
-        if (cOut > 31 || cOut == '\r' || cOut == '\n'){
+        if (cOut > 31 || cOut == '\r' || cOut == '\n' || cOut == '\a'){
             pTranscoder->LastPrintable = 1;
         }
-        if (!bTest){
-            return ring_write(pTranscoder->Ring, cOut);
-        }
-        else{
+        if (bTest){
             return 1;
         }
-
+        else{
+            return ring_write(pTranscoder->Ring, cOut);
+        }
     }
     return 0;
 }

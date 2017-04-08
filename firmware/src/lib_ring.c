@@ -271,37 +271,76 @@ unsigned char ring_append(Ring_t *Ring, const unsigned char *pStr){
 
 
 unsigned char ring_appendEscaped(Ring_t *Ring, const unsigned char *pStr){
-    unsigned char n    = 0;
-    unsigned char nChr = 0;
-    unsigned char nEsc = 0;
-    unsigned char nHigh= 0;
+    unsigned char n     = 0;
+    unsigned char cChr  = 0;
+    unsigned char nEsc  = 0;
+    unsigned char nHigh = 0;
+    unsigned char cEsc  = 0;
     
-    while(nChr = *pStr){
+    while(cChr = *pStr){
+        pStr++;
         if (nEsc == 1){
-            if (nChr == '\\'){ nChr = '\\'; nEsc = 0;}
-            if (nChr == 'n') { nChr = '\n'; nEsc = 0;}
-            if (nChr == 'r') { nChr = '\r'; nEsc = 0;}
-            if (nChr == '0') { nChr = '\0'; nEsc = 0;}
-            if (nChr == 'x') { nEsc++; }
+            if      (cChr == '/' || cChr == '\\'){ nEsc = 0;}
+            else if (cChr == 'r' || cChr == 'R') { cChr = '\r'; nEsc = 0;}
+            else if (cChr == 'n' || cChr == 'N') { cChr = '\n'; nEsc = 0;}
+            else if (cChr == 'a' || cChr == 'A') { cChr = '\a'; nEsc = 0;}
+            else if (cChr == 'x' || cChr == 'X') { nEsc = 2; }
+            else if (cChr == 'h' || cChr == 'H') { nEsc = 4; }
+            else if (cChr == '0') { cChr = '\0'; nEsc = 0;}
+            else {
+                // Wasn't an escape sequence it was \ followed by something else
+                // We add the pending \ and then set esc 0 to add the current chr
+                if (!ring_write(Ring, cEsc)){
+                    return n;
+                }
+                n++;
+                nEsc = 0;
+            }
         }
         else if (nEsc == 2){
-            nHigh = nChr;
+            // Single HEX Escaped first nibble
+            nHigh = cChr;
             nEsc++;
         }
         else if (nEsc == 3){
-            nChr = (hex2byte(nHigh) << 4) | hex2byte(nChr);
+            // Single HEX escaped second nibble
+            cChr = (hex2byte(nHigh) << 4) | hex2byte(cChr);
             nEsc = 0;
         }
-        else if (nChr == '\\'){
+        else if (nEsc == 4){
+            // HEX Stream Escaped first nibble
+            // This expects a continuous stream of hex characters until period
+            if (cChr == '.'){
+                nEsc = 0;
+                // We avoid adding the current chr
+                continue;
+            }
+            // HEX Stream Escaped first nibble
+            nHigh = cChr;
+            nEsc = 5;
+        }
+        else if (nEsc == 5){
+            // HEX Stream Escaped second nibble
+            cChr = (hex2byte(nHigh) << 4) | hex2byte(cChr);
+            // This expects a continuous stream of hex characters until period
+            nEsc = 4;
+            if (!ring_write(Ring, cChr)){
+                return n;
+            }
+            n++;
+        }
+        else if (cChr == '\\' || cChr == '/'){
+            // AS ITA2 doesn't have \, we can also use / instead
+            cEsc = cChr; 
             nEsc = 1;
         }
+        
         if (!nEsc){
-            if (!ring_write(Ring, nChr)){
+            if (!ring_write(Ring, cChr)){
                 return n;
             }
             n++;
         };
-        pStr++;
     }
     return n;
 }

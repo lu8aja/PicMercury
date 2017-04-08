@@ -26,32 +26,11 @@
 SoftSerial_t SoftSerial;
 
 
-void SoftSerial_init(
-    SoftSerial_t *pSerial,
-    unsigned char nTxPort,
-    unsigned char nTxPin,
-    unsigned char nTxInvertData,
-    unsigned char nTxInvertCtrl,
-    unsigned char nRxPort,
-    unsigned char nRxPin,
-    unsigned char nRxInvertData,
-    unsigned char nRxInvertCtrl,
-    unsigned char nDuplex
-){
+void SoftSerial_init(SoftSerial_t *pSerial){
     pSerial->Status       = 0;
     pSerial->Configs      = 0;
     pSerial->CfgDebug     = 0;
     pSerial->RxColumn     = 0;
-    
-    pSerial->TxPort       = nTxPort & 0x07;
-    pSerial->TxPin        = nTxPin  & 0x07;
-    pSerial->TxInvertData = nTxInvertData;
-    pSerial->TxInvertCtrl = nTxInvertCtrl;
-    pSerial->RxPort       = nRxPort & 0x07;
-    pSerial->RxPin        = nRxPin  & 0x07;
-    pSerial->RxInvertData = nRxInvertData;
-    pSerial->RxInvertCtrl = nRxInvertCtrl;
-    pSerial->HalfDuplex   = nDuplex;
     
     // Lets default to 8N1 at 110 bauds
     pSerial->DataBits     = 8;
@@ -65,21 +44,21 @@ void SoftSerial_init(
     // Buffers should NEVER be created twice!
     if (pSerial->Output == NULL){
         pSerial->Output = Transcoder_new(SoftSerial_sizeOutput);
-        if (!pSerial->Output){
-            pSerial->ErrorRxOverflow = 1;
-            System.Error.SoftSerialOutput = 1;
-        }
-        else{
+        if (pSerial->Output){
             System.Buffers[3] = pSerial->Output->Ring;
         }
+        else{
+            System.Error.SoftSerialOutput = 1;
+        }
     }
+    
     if (pSerial->Input == NULL){
         pSerial->Input  = Transcoder_new(SoftSerial_sizeInput);
         if (!pSerial->Input){
-            pSerial->ErrorRxOverflow = 1;
             System.Error.SoftSerialInput = 1;
         }
     }
+    
     // Link buffers, used for HalfDuplex where the loop is shared 
     // between TX and RX, thus shift status is shared as well
     if (pSerial->Input && pSerial->Output){
@@ -520,6 +499,41 @@ inline unsigned char SoftSerial_write(SoftSerial_t *pSerial, unsigned char *pStr
     return ring_append(pSerial->Output->Ring, pStr);
 }
 
+void SoftSerial_save(SoftSerial_t *pSerial){
+    unsigned char nAddr = EEDATA_CFG_SERIAL;
+
+    EEPROM_write(nAddr++, pSerial->Configs);
+    EEPROM_write(nAddr++, pSerial->CfgDebug);
+    EEPROM_write(nAddr++, (pSerial->TxPort << 4) | pSerial->TxPin);
+    EEPROM_write(nAddr++, (pSerial->RxPort << 4) | pSerial->RxPin);
+    EEPROM_write(nAddr++, (pSerial->DataBits << 4) | pSerial->StopBits);
+    EEPROM_write(nAddr++, pSerial->BitPeriod);
+}
+
+void SoftSerial_load(SoftSerial_t *pSerial){
+    unsigned char nAddr = EEDATA_CFG_SERIAL;
+    unsigned char n;
+
+    pSerial->Configs  = EEPROM_read(nAddr++);
+    pSerial->CfgDebug = EEPROM_read(nAddr++);
+
+    n = EEPROM_read(nAddr++);
+    pSerial->TxPort = n >> 4;
+    pSerial->TxPin  = n & 0x0f;
+
+    n = EEPROM_read(nAddr++);
+    pSerial->RxPort = n >> 4;
+    pSerial->RxPin  = n & 0x0f;
+
+    n = EEPROM_read(nAddr++);
+    pSerial->DataBits = n >> 4;
+    pSerial->StopBits = n & 0x0f;
+
+    pSerial->BitPeriod = EEPROM_read(nAddr++);
+    
+    n = pSerial->Enabled ? (SoftSerial_TX_ENABLE | SoftSerial_RX_ENABLE) : 0;
+    SoftSerial_enable(pSerial, n);
+}
 
 inline unsigned char SoftSerial_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs){
     if (strequal(pCommand, "cfg serial")){
@@ -533,18 +547,19 @@ inline unsigned char SoftSerial_checkCmd(unsigned char idBuffer, unsigned char *
     return 0;
 }
 
-
 void SoftSerial_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
     bool bShowStatus = true;
     unsigned char *pArg = NULL;
     SoftSerial_t *pSerial    = &SoftSerial; // For convenience
     unsigned char n          = 0;
+    #if SeoftSerial_Debug
     unsigned char c          = 0;
     unsigned char nLen       = 0;
+    #endif
 
-    
     sReply[0] = 0x00;
+    sStr1[0]  = 0x00;
     
     pArg = strtok(pArgs, txtWhitespace);
     
@@ -639,11 +654,14 @@ void SoftSerial_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
                     pSerial->BitPeriod = (unsigned char) atoi(pArg);
                     pArg = strtok(NULL, txtWhitespace);
                     if (pArg){
-                        pSerial->Input->Configs = atoi(pArg);
-                        pSerial->Output->Configs = pSerial->Input->Configs;
+                        pSerial->Input->Configs      = (unsigned char) atoi(pArg);
+                        pSerial->Input->LinkedShifts = pSerial->HalfDuplex;
+                        pSerial->Output->Configs     = pSerial->Input->Configs;
                         pArg = strtok(NULL, txtWhitespace);
                         if (pArg){
                             pSerial->HalfDuplex = atoi(pArg) & 1;
+                            pSerial->Input->LinkedShifts  = pSerial->HalfDuplex;
+                            pSerial->Output->LinkedShifts = pSerial->HalfDuplex;
                             pArg = strtok(NULL, txtWhitespace);
                             if (pArg){
                                 n = atoi(pArg);
@@ -662,11 +680,20 @@ void SoftSerial_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
             }
         }
         
-        SoftSerial_enable(&SoftSerial, SoftSerial_TX_ENABLE | SoftSerial_RX_ENABLE);
+        SoftSerial_enable(pSerial, SoftSerial_TX_ENABLE | SoftSerial_RX_ENABLE);
+    }
+    else if (strequal(pArg, "save")){
+        SoftSerial_save(pSerial);
+        strcpy(sStr1, "Saved\r\n ");
+    }
+    else if (strequal(pArg, "load")){
+        SoftSerial_load(pSerial);
+        strcpy(sStr1, "Loaded\r\n ");
     }
     
     if (bShowStatus){
-        sprintf(sReply, "%s Tx=%s %u  (%c%u%c%c) Rx=%s %u (%c%u%c%c) %uN%u T=%u HD=%u OF=%u FR=%u", 
+        sprintf(sReply, "%s%s Tx=%s %u  (%c%u%c%c) Rx=%s %u (%c%u%c%c) %uN%u T=%u HD=%u OF=%u FR=%u", 
+            sStr1,
             SoftSerial.Enabled      ? txtOn : txtOff,
             SoftSerial.RxEnabled    ? txtOn : txtOff,
             SoftSerial.TxState,

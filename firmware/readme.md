@@ -3,24 +3,24 @@
 This firmware is designed for the family of boards used in the I/O of the Clementina/Mercury project.
 The boards' PCBs are available at the boards folder in Eagle format.
 
-## Commands
+# Commands
 
-### version / ver
+## version / ver
 Always available, it identifies the board you are connected to. It has no arguments.
 
-### status
+## status
 Always available, it displays error flags and some basic status information for the board you are connected to. It has no arguments.
 
-### heap
+## heap
 Always available, it displays the heap usage (the heap is used to source the buffers) and is useful only when debuging. It has no arguments.
 
-### uptime
+## uptime
 Always available, it displays the time since the board started. It has no arguments.
 
-### ping
+## ping
 Always available, it echoes whatever argument you passed to it. Argument: freetext to be echoed.
 
-### reset
+## reset
 Always available, it does a software reset of the device, if you do this over USB you may get in trouble as the USB port may hangup in windows if you reset while still connected to it. It has an optional argument which is the number of ms to wait before reset (max 65535), by default 5000 (5 seconds), this way it allows you to disconnect from USB and wait for the reset without causing issues.
 
 Usage:
@@ -33,7 +33,7 @@ Example:
 `reset 60000` _will reset after a minute_
 `reset 500` _will reset after half second_
 
-### cfg
+## cfg
 Always available, it is a pseudo command to access the configuration to certain other commands (punch, serial, i2c, etc)
 It is the specific command the one that defines what configs are available.
 
@@ -45,7 +45,7 @@ Example:
 
 `cfg serial on 5 1 20 3 1 3 3`
 
-### read / r
+## read / r
 It sets a port or pin as input, and echoes back it level. Keep in mind this might affect peripherials connected to it!
 Ports are identified with their letters (Ex: `A`). Pins are identified with letter plus number (Ex: `D5`).
 
@@ -59,7 +59,7 @@ Examples:
 
 `read B`
 
-### write / w
+## write / w
 It sets a port or pin as output, and sets its level. Keep in mind this might affect peripherials connected to it!
 Ports are identified with their letters (Ex: `A`). Pins are identified with letter plus number (Ex: `D5`).
 
@@ -73,23 +73,23 @@ Examples:
 
 `write B 255`
 
-### i2c
+## send / i2c
 The boards communicate with each other over the I2C bus. Thus one of them, the console is a master and the others are slaves.
 Commands to be executed remotely, must start with the `$` sign.
 
 Target can be:
 
-	* p = Puncher
-	* r = Reader
-	* m = Monitor
-	* c = Console (the master)
+* p = Puncher
+* r = Reader
+* m = Monitor
+* c = Console (the master)
 
 The target can have an optional buffer id, to direct the message to a speciffic buffer in the target board.
 
-	* 0 = USB Output
-	* 1 = I2C Output
-	* 2 = Puncher Output
-	* 3 = Serial Output
+* 0 = USB Output
+* 1 = I2C Output
+* 2 = Puncher Output
+* 3 = Serial Output
 
 Usage:
 
@@ -112,19 +112,19 @@ Configs
 `cfg i2c on`
 `cfg i2c off`
 
-### led
+## led
 Available only on the console. Set or read a led status.
 
-### key
+## key
 Available only on the console. Read console keys.
 
-### run
+## run
 Available only on the console, it runs a program.
 
 There are two types of programs currently:
 
-	* **String programs** are simply a string, null separated, null terminated, that imply a sequence of commands. This is currently saved in ROM, but might be also saved in EEPROM. As space is a premium in this platform, these programs are likely going to be deprecated.
-	* **Function programs** are C functions located at app_programs.c In this way you have the full C power available, and you are not restricted to the existing commands.
+* **String programs** are simply a string, null separated, null terminated, that imply a sequence of commands. This is currently saved in ROM, but might be also saved in EEPROM. As space is a premium in this platform, these programs are likely going to be deprecated.
+* **Function programs** are C functions located at app_programs.c In this way you have the full C power available, and you are not restricted to the existing commands.
 
 Programs can be run from command line or from console keyboard. To run from keyboard you must select the program id at FUNCTION and press PREPULSE.
 
@@ -139,23 +139,33 @@ Examples:
 `run 64 1000 512` _Will print all primes from 1 to 1000 and will output the result to the serial through I2C_
 
 Programs are identified by an id.
-	* **0** = Boot sequence (light show)
-	* **1** = Play music
-	* **32** = Music playing from the console keys, using the INPUT row as frequency
-	* **64** = Calcs primes up to a number argument (INPUT if you run it from console). Optionally sends to 512=serial / 256=punch according to a second argument (ADDRESS if you run from the console)
-	* **128** = Checks if a given number argument is prime (INPUT if you run it from console). Optionally sends to 512=serial / 256=punch according to a second argument (ADDRESS if you run from the console)
+* **0** = Boot sequence (light show)
+* **1** = Play music
+* **2** = 500Hz beeps every 30 seconds until cancelled
+* **32** = Music playing from the console keys, using the INPUT row as frequency
+* **64** = Calcs primes up to the number _input_ (INPUT keys if you run it from console).
+	* Optionally sends the result according to _address_ (ADDRESS keys if you run from the console):
+		* 512 = serial
+		* 256 = punch
+* **128** = Checks if a given number _input_ is prime (INPUT keys if you run it from console).
+	* Optionally sends the result according to _address_ (ADDRESS keys if you run from the console):
+		* 512 = serial
+		* 256 = punch
 
-All these programs are just to show some activity and will likely change a lot over time.
+IMPORTANT: All these programs are just to show some activity and will likely change a lot over time.
 
-### delay / d
+## delay / d
 Set the delay of a specific step in a program, in practice this can be used for separating the commands of a "string program".
 
-### music / tone / t
+## music / tone / t
 Controls the tone generator, either to play a specific tone or to play saved music.
 
-### serial
+## serial
 The Puncher board has a software based TTY current loop builtin ready to work at slows speeds (up to 110 bauds).
-The message can have escaped characters (`\r`, `\n`, `\0`, `\a`, `\\`, `\xNN`)
+The message can have escaped characters (`\r`, `\n`, `\0`, `\a`, `\\`, `\xNN`), due to a limitation of the
+ITA2 code where the `\` character is not available, the `/` can be used instead. To minimize interference with
+common `/` usage if the escaping character is followed by a character that does not have a value defined, then
+BOTH the `/` and the following character are added to the buffer.
 
 Usage:
 
@@ -173,19 +183,19 @@ Configs
 
 Where:
 
-	_data-bits_ = Data bits: 1 to 8, typically 5 for TTY
+_data-bits_ = Data bits: 1 to 8, typically 5 for TTY
 
-	_stop-bits_ = Stop bits: 1 to 7, typically 1 or 2 for TTY
+_stop-bits_ = Stop bits: 1 to 7, typically 1 or 2 for TTY
 
-	_symbol-period-ms_ = Number of ms for each bit: 1 to 255, typically 20ms = 50bauds / 9ms = 110 bauds
+_symbol-period-ms_ = Number of ms for each bit: 1 to 255, typically 22ms = 45.45bauds / 20ms = 50bauds / 13ms = 75bauds / 9ms = 110 bauds
 
-	_transcoding_ = ASCII to ITA2 transcoding bit mask: 0=ASCII, 1=Bit 6 is Shift Status, 2=ASCII to ITA2+Bit6. (Use 3 for ASCII to ITA2)
+_transcoding_ = ASCII to ITA2 transcoding bitfield: 0=ASCII, 1=Bit 6 is Shift Status, 2=ASCII to ITA2+Bit6. (Use 3 for ASCII to ITA2)
 
-	_half-duplex_ = If set to 1 the loop is connected serially, thus in half duplex mode. When transmitting RX will be disabled, and when receiving TX will be disabled.
+_half-duplex_ = If set to 1 the loop is connected serially, thus in half duplex mode. When transmitting RX will be disabled, and when receiving TX will be disabled.
 
-	_tx-invert_ = Bitmask for TX pin inversion control. 1 = Data is inverted / 2 = Control (idle, start & stop bits) is inverted
+_tx-invert_ = Bitfield for TX pin inversion control. 1 = Data is inverted / 2 = Control (idle, start & stop bits) is inverted
 
-	_rx-invert_ = Bitmask for RX pin inversion control. 1 = Data is inverted / 2 = Control (idle, start & stop bits) is inverted
+_rx-invert_ = Bitfield for RX pin inversion control. 1 = Data is inverted / 2 = Control (idle, start & stop bits) is inverted
 
 Example:
 
@@ -195,9 +205,12 @@ Example:
 
 `cfg serial off` _Will turn off the serial port_
 
-### punch
+## punch
 Controls the tape puncher.
-Be careful if you set a time config too small it will jam the paper and if you set the time too large it will consume a lot of current and may damage the solenoids.
+The message can have escaped characters (`\r`, `\n`, `\0`, `\a`, `\\`, `\xNN`), due to a limitation of the
+ITA2 code where the `\` character is not available, the `/` can be used instead. To minimize interference with
+common `/` usage if the escaping character is followed by a character that does not have a value defined, then
+BOTH the `/` and the following character are added to the buffer.
 
 Usage:
 
@@ -207,31 +220,35 @@ Examples:
 
 `punch Hello boy!\r\r\n This is a rather long message` _will punch a tape with this message_
 
-Configs
+Configs:
+
+Be careful if you set a time config too small as it will jam the paper and if you set the time too large it
+will consume a lot of current and may damage the solenoids.
+
 
 **cfg punch** _setting_ _value_
 
 Where:
 
-	_setting_ = The setting to be displayed or changed
+_setting_ = The setting to be displayed or changed
 
-	_value_ = Is optional according to the setting, if omitted it will display the current value
+_value_ = Is optional according to the setting, if omitted it will display the current value
 
 Settings:
 
-	`on`  = Turns on the puncher
+`on`  = Turns on the puncher
 
-	`off` = Turns off the puncher
+`off` = Turns off the puncher
 
-	`mode` = Transcoding mode: 0 = ASCII / 1=ITA2 6 bits -> ITA2 / 2=ASCII -> ITA2 6 bits / 3 = ASCII -> ITA2
+`mode` = Transcoding mode: 0=ASCII / 1=ITA2 6 bits->ITA2 / 2=ASCII->ITA2 6 bits / 3=ASCII->ITA2. [Read more](transcoding.md)
 
-	`time.punch` = Time in ms the punched should be punching the holes
+`time.punch` = Time in ms the punched should be punching the holes
 
-	`time.gap1`  = Dead time in ms between punching and advancing
+`time.gap1`  = Dead time in ms between punching and advancing
 
-	`time.advance` = Time in ms the puncher should turn on the advance solenoid
+`time.advance` = Time in ms the puncher should turn on the advance solenoid
 
-	`time.gap2`  = Dead time between advance and the punch of the next character
+`time.gap2`  = Dead time between advance and the punch of the next character
 
 
 Example:

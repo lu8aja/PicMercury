@@ -7,17 +7,28 @@
 
 #define LIB_MONITOR
 
+#include <xc.h>
+
+#include "app_globals.h"
+#include "app_main.h"
+#include "lib_helpers.h"
+#include "app_io.h"
+#include "service_usb.h"
+
 typedef struct {
-    struct {
-        unsigned char Enabled:1;
-        unsigned char A:1;
-        unsigned char B:1;
-        unsigned char C:1;
-        unsigned char D:1;
-        unsigned char E:1;
-        unsigned char :1;
-        unsigned char :1;
-    } Configs;
+    union {
+        unsigned char Configs;
+        struct {
+            unsigned char Enabled:1;
+            unsigned char A:1;
+            unsigned char B:1;
+            unsigned char C:1;
+            unsigned char D:1;
+            unsigned char E:1;
+            unsigned char :1;
+            unsigned char :1;
+        } Config;
+    };
     unsigned char Port[5];
     unsigned char Tris[5];
 } monitor_t;

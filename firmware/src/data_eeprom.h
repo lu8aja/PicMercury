@@ -16,3 +16,5 @@
 #define EEDATA_MUSIC_1_LENGTH  7
 
 #define EEDATA_PROGRAMS        8
+
+#define EEDATA_CFG_SERIAL      0xF8
