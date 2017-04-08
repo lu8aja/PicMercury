@@ -24,12 +24,12 @@
 
 // Optional libraries with associated boards and commands
 
-#if defined(DEVICE_PUNCHER)
+#ifdef DEVICE_PUNCHER
     #include "service_puncher.h"    // Puncher library with associated PUNCH cmd
     #include "service_softserial.h" // TTY 5N1
 #endif
 
-#if defined(DEVICE_CONSOLE)
+#ifdef DEVICE_CONSOLE
     #include "service_leds.h"      // Led matrix
     #include "service_keys.h"      // Keyboard diode matrix
     #include "service_music.h"     // Tone generator

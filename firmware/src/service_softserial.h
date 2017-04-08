@@ -59,23 +59,23 @@ typedef struct {
     union {
         unsigned char Configs;               // Configs Register
         struct {
-            unsigned Enabled:1;             // [01] Service Enabled
-            unsigned TxInvertData:1;        // [02] Tx Invert Data bits
-            unsigned TxInvertCtrl:1;        // [04] Tx Invert Control bits
-            unsigned RxInvertData:1;        // [10] Rx Invert Data bits
-            unsigned RxInvertCtrl:1;        // [20] Rx Invert Control bits
-            unsigned RxEcho:1;              // [40] Echo received char to Tx as is (bypassing the ring buffer)
-            unsigned HalfDuplex:1;          // [80] 1 = HalfDuplex: Disables RX while TX, and TX while RX, (to suppress reentrant input or corrupting output, in a current loop)
-            unsigned RxCommands:1;          // [02] 0: Discard messages / 1: Execute commands
+            unsigned char Enabled:1;             // [01] Service Enabled
+            unsigned char TxInvertData:1;        // [02] Tx Invert Data bits
+            unsigned char TxInvertCtrl:1;        // [04] Tx Invert Control bits
+            unsigned char RxInvertData:1;        // [10] Rx Invert Data bits
+            unsigned char RxInvertCtrl:1;        // [20] Rx Invert Control bits
+            unsigned char RxEcho:1;              // [40] Echo received char to Tx as is (bypassing the ring buffer)
+            unsigned char HalfDuplex:1;          // [80] 1 = HalfDuplex: Disables RX while TX, and TX while RX, (to suppress reentrant input or corrupting output, in a current loop)
+            unsigned char RxCommands:1;          // [02] 0: Discard messages / 1: Execute commands
         };
     };
 
     union {
         unsigned char CfgDebug;             // Configs Debug
         struct {
-            unsigned Debug:1;               // [01] Debug to console (Only available when compiled with the DEBUG flag)
-            unsigned RxEchoToUsb:1;         // [02] Echo the decoded output to USB directly
-            unsigned TxRepeated:1;          // [04] Repeated send, does not clear the out buffer and restarts the pointer (Only available when compiled with the DEBUG flag)
+            unsigned char Debug:1;               // [01] Debug to console (Only available when compiled with the DEBUG flag)
+            unsigned char RxEchoToUsb:1;         // [02] Echo the decoded output to USB directly
+            unsigned char TxRepeated:1;          // [04] Repeated send, does not clear the out buffer and restarts the pointer (Only available when compiled with the DEBUG flag)
             unsigned :5;
         };
     };

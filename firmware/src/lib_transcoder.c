@@ -76,17 +76,47 @@ Transcoder_t * Transcoder_new(const unsigned char nSize){
 unsigned char Transcoder_read(Transcoder_t *pTranscoder, unsigned char *pChar){
     unsigned char cIn;
     unsigned char cOut;
-    unsigned char nAdv = 0;
+    unsigned char nAdv = 1;
+
+    // AutoCrlf detection
+    if (pTranscoder->AutoCrLf && pTranscoder->Column >= CFG_TRANSCODER_COLUMNS){
+        pTranscoder->CrLfCtrl = 3;
+    }
     
-    // Direct ASCII
-    if (!ring_peep(pTranscoder->Ring, &cIn)){
+    // AutoCrlf insertion
+    if (pTranscoder->CrLfCtrl){
+        if (pTranscoder->CrLfCtrl > 1){
+            cIn = '\r';
+        }
+        else{
+            cIn = '\n';
+        }
+        pTranscoder->CrLfCtrl--;
+        
+        nAdv = 0;
+    }
+    // Get next character to send
+    else if (!ring_peep(pTranscoder->Ring, &cIn)){
         *pChar = 0;
         return 0;
     };
-    nAdv = 1;
+
+    // Column tracking
+    if (cIn == '\r'){
+        pTranscoder->Column = 0;
+        if (pTranscoder->Linked && pTranscoder->LinkedColumn){
+            *pTranscoder->LinkedColumn = 0;
+        }
+    }
+    else if(cIn != '\n' && cIn != '\0'){
+        pTranscoder->Column++;
+        if (pTranscoder->Linked && pTranscoder->LinkedColumn){
+            *pTranscoder->LinkedColumn++;
+        }
+    }
     
-    
-   if (pTranscoder->ModeIta2){
+    // Mode2: ASCII -> ITA2 w/bit6
+    if (pTranscoder->ModeIta2){
         cIn = toupper(cIn);
 
         // Find the corresponding ITA2 for the given ASCII
@@ -128,7 +158,7 @@ unsigned char Transcoder_read(Transcoder_t *pTranscoder, unsigned char *pChar){
         cOut = cIn;
     }
     
-    // Mode1 = ITA2+shift -> ITA2
+    // Mode1: ITA2 w/bit6 -> ITA2
     // Shift calculations with bit 6
     if (pTranscoder->ModeBit6){
         // 5 bit + Shift flag
@@ -150,27 +180,26 @@ unsigned char Transcoder_read(Transcoder_t *pTranscoder, unsigned char *pChar){
             }
         }
     }
-    else{
-        // Pure 5 bits mode
-        cOut &= 0b00011111;
+
+    // Shift tracking
+    if (pTranscoder->ModeBit6 || pTranscoder->ModeIta2){
+        if (cOut == TRANSCODER_ITA_LTRS){
+            pTranscoder->Shift = 0;
+            if (pTranscoder->Linked && pTranscoder->LinkedStatus){
+                *pTranscoder->LinkedStatus &= 0b11111110;
+            }
+        }
+        else if (cOut == TRANSCODER_ITA_FIGS){
+            pTranscoder->Shift = 1;
+            if (pTranscoder->Linked && pTranscoder->LinkedStatus){
+                *pTranscoder->LinkedStatus |= 0b00000001;
+            }
+        }
     }
 
     if (nAdv){
         // Move the pointer
         ring_read(pTranscoder->Ring, &cIn);
-    }
-
-    if (cOut == TRANSCODER_ITA_LTRS){
-        pTranscoder->Shift = 0;
-        if (pTranscoder->LinkedShifts && pTranscoder->LinkedConfigs){
-            *pTranscoder->LinkedConfigs &= 0b01111111;
-        }
-    }
-    else if (cOut == TRANSCODER_ITA_FIGS){
-        pTranscoder->Shift = 1;
-        if (pTranscoder->LinkedShifts && pTranscoder->LinkedConfigs){
-            *pTranscoder->LinkedConfigs |= 0b10000000;
-        }
     }
     
     *pChar = cOut;
@@ -187,16 +216,16 @@ unsigned char Transcoder_write(Transcoder_t *pTranscoder, unsigned char cIn, uns
         
         if (cIn == TRANSCODER_ITA_FIGS){
             pTranscoder->Shift = 1;
-            if (pTranscoder->LinkedShifts && pTranscoder->LinkedConfigs){
-                *pTranscoder->LinkedConfigs |= 0b10000000;
+            if (pTranscoder->Linked && pTranscoder->LinkedStatus){
+                *pTranscoder->LinkedStatus |= 0b00000001;
             }
             pTranscoder->Char = 0x0f;
             return 1;
         }
         else if (cIn == TRANSCODER_ITA_LTRS){
             pTranscoder->Shift = 0;
-            if (pTranscoder->LinkedShifts && pTranscoder->LinkedConfigs){
-                *pTranscoder->LinkedConfigs &= 0b01111111;
+            if (pTranscoder->Linked && pTranscoder->LinkedStatus){
+                *pTranscoder->LinkedStatus &= 0b11111110;
             }
             pTranscoder->Char = 0x0e;
             return 1;
@@ -223,9 +252,25 @@ unsigned char Transcoder_write(Transcoder_t *pTranscoder, unsigned char cIn, uns
     pTranscoder->Char = cOut;
     
     if (cOut || !pTranscoder->AvoidNull){
-        if (cOut > 31 || cOut == '\r' || cOut == '\n' || cOut == '\a'){
+        if (cOut == '\r'){
+            pTranscoder->LastPrintable = 1;
+            pTranscoder->Column = 0;
+            if (pTranscoder->Linked && pTranscoder->LinkedColumn){
+                *pTranscoder->LinkedColumn = 0;
+            }
+        }
+        else if (cOut == '\n'){
             pTranscoder->LastPrintable = 1;
         }
+        else if (cOut > 31 || cOut == '\a'){
+            pTranscoder->LastPrintable = 1;
+            pTranscoder->Column++;
+            if (pTranscoder->Linked && pTranscoder->LinkedColumn){
+                *pTranscoder->LinkedColumn++;
+            }
+
+        }
+        
         if (bTest){
             return 1;
         }

@@ -62,8 +62,10 @@ void SoftSerial_init(SoftSerial_t *pSerial){
     // Link buffers, used for HalfDuplex where the loop is shared 
     // between TX and RX, thus shift status is shared as well
     if (pSerial->Input && pSerial->Output){
-        pSerial->Input->LinkedConfigs  = &pSerial->Output->Configs;
-        pSerial->Output->LinkedConfigs = &pSerial->Input->Configs;
+        pSerial->Input->LinkedStatus  = &pSerial->Output->Configs;
+        pSerial->Output->LinkedStatus = &pSerial->Input->Configs;
+        pSerial->Input->LinkedColumn  = &pSerial->Output->Column;
+        pSerial->Output->LinkedColumn = &pSerial->Input->Column;
     }
 }
 
@@ -104,8 +106,8 @@ void SoftSerial_enable(SoftSerial_t *pSerial, unsigned char nEnabled){
         pSerial->HalfDuplex = 0;
     }
     
-    pSerial->Input->LinkedShifts  = pSerial->HalfDuplex;
-    pSerial->Output->LinkedShifts = pSerial->HalfDuplex;
+    pSerial->Input->Linked  = pSerial->HalfDuplex;
+    pSerial->Output->Linked = pSerial->HalfDuplex;
 
     #if SeoftSerial_Debug
         pSerial->SyncPort = 3;
@@ -508,6 +510,8 @@ void SoftSerial_save(SoftSerial_t *pSerial){
     EEPROM_write(nAddr++, (pSerial->RxPort << 4) | pSerial->RxPin);
     EEPROM_write(nAddr++, (pSerial->DataBits << 4) | pSerial->StopBits);
     EEPROM_write(nAddr++, pSerial->BitPeriod);
+    EEPROM_write(nAddr++, pSerial->Output->Configs);
+    EEPROM_write(nAddr++, pSerial->Input->Configs);
 }
 
 void SoftSerial_load(SoftSerial_t *pSerial){
@@ -531,6 +535,9 @@ void SoftSerial_load(SoftSerial_t *pSerial){
 
     pSerial->BitPeriod = EEPROM_read(nAddr++);
     
+    pSerial->Output->Configs = EEPROM_read(nAddr++);
+    pSerial->Input->Configs  = EEPROM_read(nAddr++);
+    
     n = pSerial->Enabled ? (SoftSerial_TX_ENABLE | SoftSerial_RX_ENABLE) : 0;
     SoftSerial_enable(pSerial, n);
 }
@@ -549,7 +556,7 @@ inline unsigned char SoftSerial_checkCmd(unsigned char idBuffer, unsigned char *
 
 void SoftSerial_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
     bool bOK = true;
-    bool bShowStatus = true;
+    bool bShowStatus = false;
     unsigned char *pArg = NULL;
     SoftSerial_t *pSerial    = &SoftSerial; // For convenience
     unsigned char n          = 0;
@@ -565,6 +572,7 @@ void SoftSerial_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
     
     if (!pArg){
         // Do nothing, just print data
+        bShowStatus = true;
     }
     #if SeoftSerial_Debug
         else if(strequal(pArg, "debug")){
@@ -639,9 +647,11 @@ void SoftSerial_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
         SoftSerial.Status   = 0;
         SoftSerial.TxState  = 0;
         SoftSerial.RxState  = 0;
+        strcpy(sReply, txtOff);
     }
-    // on (DataBits) (StopBits) (Period) (Mode) (HD) (TxInvert) (RxInvert)
+    // on (DataBits) (StopBits) (Period) (Transcoding) (HD) (TxInvert) (RxInvert)
     else if (strequal(pArg, "on")){
+        bShowStatus = true;
         // Note: Horrible arrow pattern, but it is cheaper in ROM
         pArg = strtok(NULL, txtWhitespace);
         if (pArg){
@@ -654,14 +664,14 @@ void SoftSerial_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
                     pSerial->BitPeriod = (unsigned char) atoi(pArg);
                     pArg = strtok(NULL, txtWhitespace);
                     if (pArg){
-                        pSerial->Input->Configs      = (unsigned char) atoi(pArg);
-                        pSerial->Input->LinkedShifts = pSerial->HalfDuplex;
-                        pSerial->Output->Configs     = pSerial->Input->Configs;
+                        pSerial->Input->Configs   = (unsigned char) atoi(pArg);
+                        pSerial->Input->Linked    = pSerial->HalfDuplex;
+                        pSerial->Output->Configs  = pSerial->Input->Configs;
                         pArg = strtok(NULL, txtWhitespace);
                         if (pArg){
-                            pSerial->HalfDuplex = atoi(pArg) & 1;
-                            pSerial->Input->LinkedShifts  = pSerial->HalfDuplex;
-                            pSerial->Output->LinkedShifts = pSerial->HalfDuplex;
+                            pSerial->HalfDuplex     = atoi(pArg) & 1;
+                            pSerial->Input->Linked  = pSerial->HalfDuplex;
+                            pSerial->Output->Linked = pSerial->HalfDuplex;
                             pArg = strtok(NULL, txtWhitespace);
                             if (pArg){
                                 n = atoi(pArg);
@@ -684,17 +694,21 @@ void SoftSerial_cmd_cfg(unsigned char idBuffer, unsigned char *pArgs){
     }
     else if (strequal(pArg, "save")){
         SoftSerial_save(pSerial);
-        strcpy(sStr1, "Saved\r\n ");
+        strcpy(sReply, "Saved");
     }
     else if (strequal(pArg, "load")){
         SoftSerial_load(pSerial);
-        strcpy(sStr1, "Loaded\r\n ");
+        strcpy(sReply, "Loaded\r\n ");
+        bShowStatus = true;
     }
-    
+    else if (strequal(pArg, "column")){
+        sprintf(sReply, "%u", pSerial->Output->Column);
+    }
     if (bShowStatus){
-        sprintf(sReply, "%s%s Tx=%s %u  (%c%u%c%c) Rx=%s %u (%c%u%c%c) %uN%u T=%u HD=%u OF=%u FR=%u", 
-            sStr1,
+        sprintf(&sReply[strlen(sReply)], 
+            "%s Cfg=%02hx Tx=%s %u  (%c%u%c%c) Rx=%s %u (%c%u%c%c) %uN%u T=%u HD=%u OF=%u FR=%u", 
             SoftSerial.Enabled      ? txtOn : txtOff,
+            SoftSerial.Configs,
             SoftSerial.RxEnabled    ? txtOn : txtOff,
             SoftSerial.TxState,
             SoftSerial.TxPort + 'A' - 1,

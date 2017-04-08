@@ -9,7 +9,7 @@
 
 #include "app_globals.h"
 #include "app_io.h"
-#include "app_main.h"
+
 
 inline unsigned char Cmd_checkCmd(unsigned char idBuffer, unsigned char *pCommand, unsigned char *pArgs);
 // APP Commands

@@ -4,6 +4,9 @@ This firmware is designed for the family of boards used in the I/O of the Clemen
 The boards' PCBs are available at the boards folder in Eagle format.
 
 # Commands
+When commands are run either remotely via SERIAL or I2C/SEND the usage of the `$` prefix is mandatory,
+as the system needs to differentiate commands from users simply playing around with the TTY. When at
+the USB connection, the `$` becomes optional.
 
 ## version / ver
 Always available, it identifies the board you are connected to. It has no arguments.
@@ -162,7 +165,7 @@ Controls the tone generator, either to play a specific tone or to play saved mus
 
 ## serial
 The Puncher board has a software based TTY current loop builtin ready to work at slows speeds (up to 110 bauds).
-The message can have escaped characters (`\r`, `\n`, `\0`, `\a`, `\\`, `\xNN`), due to a limitation of the
+The message can have escaped characters (`\r`, `\n`, `\0`, `\a`, `\\`, `\xNN`, `\hNNNNNN.`), due to a limitation of the
 ITA2 code where the `\` character is not available, the `/` can be used instead. To minimize interference with
 common `/` usage if the escaping character is followed by a character that does not have a value defined, then
 BOTH the `/` and the following character are added to the buffer.
@@ -207,7 +210,7 @@ Example:
 
 ## punch
 Controls the tape puncher.
-The message can have escaped characters (`\r`, `\n`, `\0`, `\a`, `\\`, `\xNN`), due to a limitation of the
+The message can have escaped characters (`\r`, `\n`, `\0`, `\a`, `\\`, `\xNN`, `\hNNNNNN.`), due to a limitation of the
 ITA2 code where the `\` character is not available, the `/` can be used instead. To minimize interference with
 common `/` usage if the escaping character is followed by a character that does not have a value defined, then
 BOTH the `/` and the following character are added to the buffer.

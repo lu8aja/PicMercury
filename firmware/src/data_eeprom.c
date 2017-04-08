@@ -93,11 +93,11 @@ __EEPROM_DATA(
 /* CFG: SERIAL */            
 /* F8 */	__EEPROM_DATA(
     0b11011101, //Configs:  RxCommands,HalfDuplex,RxEcho,RxInvertCtrl,RxInvertData,TxInvertCtrl,TxInvertData,Enabled
-    0b00000010, //CfgDebug: RxEchoToUsb,Debug
+    0b00000010, //CfgDebug: 000000,RxEchoToUsb,Debug
     0x25,       //TxPort,TxPin (B5)
     0x24,       //RxPort,RxPin (B4)
     0x51,       //DataBits,StopBits (5N1)
     20,         //BitPeriod (20ms = 50Bd)
-    0,
-    0
+    0b00011011, //Tx Transcoder: 000,[16]Linked,[8]AutoCrLf,[4]AvoidNull,[2]ModeBit6,[1]ModeIta2
+    0b00011011, //Rx Transcoder: 000,Linked,AutoCrLf,AvoidNull,ModeBit6,ModeIta2
 );

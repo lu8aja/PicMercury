@@ -13,6 +13,11 @@
 
 #include "service_i2c.h"
 
+#ifdef DEVICE_PUNCHER
+    #include "service_puncher.h"    // Puncher library with associated PUNCH cmd
+    #include "service_softserial.h" // TTY 5N1
+#endif
+
 #ifdef LIB_SOFTSERIAL
     #include "service_softserial.h"
 #endif
@@ -84,17 +89,29 @@ void APP_CMD_reset(unsigned char idBuffer, unsigned char *pArgs){
 void APP_CMD_status(unsigned char idBuffer, unsigned char *pArgs){
     byte2binstr(sStr1, System.Errors);
     
-    printf("Status=%s\r\n", sStr1);
+    sprintf(sReply, "Errors=%s\r\n", sStr1);
     
-    printf("I2C In=%hx\r\nI2C Out=%hx\r\n", I2C.Input->Buffer, I2C.Output->Buffer);
+    sprintf(&sReply[strlen(sReply)], 
+        " I2C In=%x Out=%x",
+        I2C.Input->Buffer,
+        I2C.Output->Buffer
+    );
+    
     #ifdef LIB_SOFTSERIAL
-        printf("Puncher=%x\r\n", sStr1, Puncher.Output->Ring->Buffer);
+        sprintf(&sReply[strlen(sReply)], 
+            " / Puncher=%x",
+            Puncher.Output->Ring->Buffer
+        );
     #endif
     #ifdef LIB_PUNCHER
-        printf("Serial In=%x\r\nSerial Out=%x\r\n", SoftSerial.Input->Ring->Buffer, SoftSerial.Output->Ring->Buffer);
+        sprintf(&sReply[strlen(sReply)], 
+            " / Serial In=%x Out=%x",
+            SoftSerial.Input->Ring->Buffer,
+            SoftSerial.Output->Ring->Buffer
+        );
     #endif
     
-    printReply(idBuffer, 1, "STATUS", 0);
+    printReply(idBuffer, 1, "STATUS", sReply);
 }
 
 void APP_CMD_uptime(unsigned char idBuffer, unsigned char *pArgs){
