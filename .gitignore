@@ -1,11 +1,12 @@
 
 
 #Backup Files
+.LOCAL/
 BKP*.*
 Ignore *.*
 Copy of *.*
-board/*.b#[0-9]
-board/*.s#[0-9]
+boards/*.b#[0-9]
+boards/*.s#[0-9]
 Backups
 
 # gitignore for MPLAB X projects https://gist.github.com/zeha/5999375

@@ -77,7 +77,7 @@ typedef struct {
             unsigned I2cOutput:1;
             unsigned SoftSerialInput:1;
             unsigned SoftSerialOutput:1;
-            unsigned PuncherOutput:1;
+            unsigned Tape:1;
         } Error;
     };
     Clock_t Clock;
@@ -103,14 +103,19 @@ extern System_t System;
     #define Puncher_sizeOutput    sizeCommand
     #define sizeOutput            150
     #define sizeOutUsb            60
-
 #endif
 
 #ifdef DEVICE_CONSOLE
     #define HEAP_Size             210    // Remember that the ring structs themselves waste about 6 bytes
     #define sizeOutput            300
     #define sizeOutUsb            150
+#endif
 
+
+#ifdef DEVICE_READER
+    #define HEAP_Size             210    // Remember that the ring structs themselves waste about 6 bytes
+    #define sizeOutput            300
+    #define sizeOutUsb            150
 #endif
 
 

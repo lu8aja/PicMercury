@@ -17,7 +17,7 @@
 #include "data_eeprom.h"
 
 #include "service_usb.h"       // USB library
-#include "service_i2c.h"       // I2C library
+//#include "service_i2c.h"       // I2C library
 
 #include "app_io.h"
 #include "app_cmd.h"
@@ -33,9 +33,13 @@
     #include "service_leds.h"      // Led matrix
     #include "service_keys.h"      // Keyboard diode matrix
     #include "service_music.h"     // Tone generator
-    // #include "service_uart.h"      // UART
+    // #include "service_uart.h"     // UART
     //#include "service_monitor.h"   // Pin monitor
     #include "service_program.h"   // Program service
+#endif
+
+#ifdef DEVICE_READER
+    #include "service_reader.h"    // Paper tape reader
 #endif
 
 
@@ -78,6 +82,10 @@ inline void APP_init(void){
         Puncher_init(1, 3);
     #endif
 
+    #ifdef LIB_READER
+        Reader_init();
+    #endif
+
     #ifdef LIB_PROGRAM
         Program_init();
     #endif
@@ -92,7 +100,7 @@ inline void APP_init(void){
         SoftSerial_load(&SoftSerial);
     #endif
     
-    #if defined(LIB_I2C)
+    #ifdef LIB_I2C
         #if defined(DEVICE_I2C_MASTER)
             I2C_Master_init();
         #else
@@ -175,6 +183,11 @@ void interrupt APP_interrupt_high(void){             // High priority interrupt
                 Puncher_tick();
             #endif
                             
+            // READER ms tick
+            #ifdef LIB_READER
+                Reader_tick();
+            #endif
+
             // PROGRAM ms tick
             #ifdef LIB_PROGRAM
                 Program_tick();
@@ -228,6 +241,10 @@ inline void APP_main(){
     if (Puncher.Enabled && !Puncher.Tick){
         Puncher_service();
     }
+    #endif
+
+    #ifdef LIB_READER
+        Reader_service();
     #endif
 
     
@@ -352,6 +369,10 @@ void APP_executeCommand(unsigned char idBuffer, unsigned char *pLine){
 
     #ifdef LIB_PUNCHER
         if (!nExecuted) nExecuted = Puncher_checkCmd(idBuffer, pCommand, pArgs);
+    #endif
+
+    #ifdef LIB_READER
+        if (!nExecuted) nExecuted = Reader_checkCmd(idBuffer, pCommand, pArgs);
     #endif
 
     #ifdef LIB_MUSIC

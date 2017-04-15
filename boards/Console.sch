@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.05" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="no" active="no"/>
 <layer number="16" name="Bottom" color="1" fill="1" visible="no" active="no"/>
@@ -17605,7 +17605,9 @@ D = Direct mounting &lt;p&gt;
 <pinref part="Q1" gate="G$1" pin="1"/>
 <wire x1="-81.28" y1="15.24" x2="-73.66" y2="12.7" width="0.1524" layer="91"/>
 <pinref part="IC1" gate="G$1" pin="RA6/OSC2/CLKO"/>
-<wire x1="-25.4" y1="15.24" x2="-73.66" y2="12.7" width="0.1524" layer="91"/>
+<wire x1="-25.4" y1="15.24" x2="-68.58" y2="15.24" width="0.1524" layer="91"/>
+<wire x1="-68.58" y1="15.24" x2="-71.12" y2="12.7" width="0.1524" layer="91"/>
+<wire x1="-71.12" y1="12.7" x2="-73.66" y2="12.7" width="0.1524" layer="91"/>
 <pinref part="C2" gate="G$1" pin="1"/>
 <junction x="-73.66" y="12.7"/>
 </segment>
@@ -17639,9 +17641,10 @@ D = Direct mounting &lt;p&gt;
 <wire x1="-73.66" y1="22.86" x2="-81.28" y2="20.32" width="0.1524" layer="91"/>
 <pinref part="C1" gate="G$1" pin="1"/>
 <pinref part="IC1" gate="G$1" pin="OSC1/CLKI"/>
-<wire x1="-25.4" y1="17.78" x2="-66.04" y2="17.78" width="0.1524" layer="91"/>
-<wire x1="-66.04" y1="17.78" x2="-68.58" y2="20.32" width="0.1524" layer="91"/>
-<wire x1="-68.58" y1="20.32" x2="-73.66" y2="22.86" width="0.1524" layer="91"/>
+<wire x1="-25.4" y1="17.78" x2="-68.58" y2="17.78" width="0.1524" layer="91"/>
+<wire x1="-68.58" y1="17.78" x2="-68.58" y2="20.32" width="0.1524" layer="91"/>
+<wire x1="-68.58" y1="20.32" x2="-71.12" y2="22.86" width="0.1524" layer="91"/>
+<wire x1="-71.12" y1="22.86" x2="-73.66" y2="22.86" width="0.1524" layer="91"/>
 <junction x="-73.66" y="22.86"/>
 </segment>
 </net>
