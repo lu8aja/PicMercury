@@ -17,7 +17,7 @@
 #include "data_eeprom.h"
 
 #include "service_usb.h"       // USB library
-//#include "service_i2c.h"       // I2C library
+#include "service_i2c.h"       // I2C library
 
 #include "app_io.h"
 #include "app_cmd.h"
@@ -40,6 +40,7 @@
 
 #ifdef DEVICE_READER
     #include "service_reader.h"    // Paper tape reader
+    //#include "service_softserial.h" // TTY 5N1
 #endif
 
 

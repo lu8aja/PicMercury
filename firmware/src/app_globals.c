@@ -38,6 +38,7 @@ const char txtErrorUnknownArgument[] = "Unknown argument";
 const char txtErrorInvalidArgument[] = "Invalid argument";
 const char txtErrorMissingArgument[] = "Missing argument";
 const char txtErrorTooBig[]          = "Too big";
+const char txtErrorBufferFull[]      = "Buffer full";
 const char txtErrorUnknownPin[]      = "Unknown pin";
 const char txtErrorBusy[]            = "Busy";
 const char txtErrorCorrupt[]         = "Corrupt"; 

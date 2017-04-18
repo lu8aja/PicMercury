@@ -41,6 +41,7 @@ extern const char txtErrorUnknownPin[];
 extern const char txtErrorInvalidArgument[];
 extern const char txtErrorMissingArgument[];
 extern const char txtErrorTooBig[];
+extern const char txtErrorBufferFull[];
 extern const char txtErrorBusy[];
 extern const char txtErrorCorrupt[];
 
